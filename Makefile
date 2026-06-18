@@ -11,7 +11,7 @@ LDFLAGS := -lm
 # Directories
 SRC_DIR := src
 BUILD_DIR := build
-LIB_DIR := lib
+LIB_DIR := pfun_cma_engine
 INCLUDE_DIR := include
 
 # Source files
@@ -50,23 +50,11 @@ $(BUILD_DIR)/%.o: $(SRC_DIR)/%.c $(HEADERS)
 # Clean build artifacts
 .PHONY: clean
 clean:
-	rm -rf $(BUILD_DIR) $(LIB_DIR) *.so *.a *.egg-info
+	rm -rf $(BUILD_DIR) $(LIB_DIR) *.so *.a *.o *.egg-info
 
 # Rebuild from scratch
 .PHONY: rebuild
 rebuild: clean all
-
-# Install to system
-.PHONY: install
-install: $(TARGET)
-	cp $(TARGET) /usr/local/lib/
-	ldconfig
-
-# Uninstall from system
-.PHONY: uninstall
-uninstall:
-	rm -f /usr/local/lib/$(TARGET)
-	ldconfig
 
 # Run tests (if available)
 .PHONY: test
@@ -98,8 +86,6 @@ help:
 	@echo "  all       - Build shared and static libraries (default)"
 	@echo "  clean     - Remove build artifacts"
 	@echo "  rebuild   - Clean and rebuild"
-	@echo "  install   - Install to system libraries"
-	@echo "  uninstall - Remove from system libraries"
 	@echo "  debug     - Build with debug symbols"
 	@echo "  format    - Format code with clang-format"
 	@echo "  help      - Show this help message"

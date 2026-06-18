@@ -12,26 +12,9 @@ dependencies = [
 requires = ["setuptools>=65.5.0", "wheel"]
 build-backend = "setuptools.build_meta"
 
-[tool.hatch.build.targets.sdist]
-include = [
-    "pfun_cma_engine/*.py",
-    "src/pfun_cma_engine.c",
-    "src/pfun_cma_engine.h",
-]
+[tool.setuptools.package-data]
+pfun_cma_engine = ["*.so", "*.py"]
 
-[tool.hatch.build.targets.wheel]
-include = [
-    "pfun_cma_engine/*.py",
-    "src/pfun_cma_engine.c",
-    "src/pfun_cma_engine.h",
-]
-
-[tool.hatch.build.targets.build_ext]
-include = [
-    "pfun_cma_engine/*.py",
-    "src/pfun_cma_engine.c",
-    "src/pfun_cma_engine.h",
-]
 
 # Note: Extension modules are declared via `setup.py` for compatibility
 # with editable builds and current setuptools behaviour.
@@ -39,10 +22,5 @@ include = [
 # which matches the package structure defined in package_dir.
 
 [dependency-groups]
-cext = [
-    "setuptools>=65.5.0",
-    "wheel>=0.38.4",
-]
-dev = [
-    "ipython>=9.14.1",
-]
+
+dev = []

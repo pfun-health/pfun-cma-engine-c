@@ -1,0 +1,3 @@
+include src/pfun_cma_engine.h
+recursive-include pfun_cma_engine *.py
+recursive-include pfun_cma_engine *.so

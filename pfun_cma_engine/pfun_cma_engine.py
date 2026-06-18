@@ -5,12 +5,12 @@ import numpy as np
 
 # Load the shared library
 try:
-    _lib = ctypes.CDLL(Path(__file__).parent / "pfun_cma_engine.so")
+    _lib = ctypes.CDLL(Path(__file__).parent / "lib" / "libpfun_cma_engine.so")
 except OSError:
     # Fallback for absolute path if relative fails
     import pfun_path_helper as pph
     lib_path = Path(pph.get_lib_path("pfun_cma_engine"))
-    _lib = ctypes.CDLL(lib_path.joinpath("pfun_cma_engine.so"))
+    _lib = ctypes.CDLL(lib_path.joinpath("lib", "libpfun_cma_engine.so"))
 
 # --- Function Prototypes ---
 
