@@ -50,7 +50,7 @@ $(BUILD_DIR)/%.o: $(SRC_DIR)/%.c $(HEADERS)
 # Clean build artifacts
 .PHONY: clean
 clean:
-	rm -rf $(BUILD_DIR) $(LIB_DIR) *.so *.a *.o *.egg-info
+	rm -rf $(BUILD_DIR) $(LIB_DIR)/*.so $(LIB_DIR)/*.a $(LIB_DIR)/*.o
 
 # Rebuild from scratch
 .PHONY: rebuild

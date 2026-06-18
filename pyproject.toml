@@ -23,4 +23,6 @@ pfun_cma_engine = ["*.so", "*.py"]
 
 [dependency-groups]
 
-dev = []
+dev = [
+    "ipython>=9.14.1",
+]
