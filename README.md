@@ -1,14 +1,22 @@
 # pfun-health/pfun-cma-engine-c
 
-_Optimized C extensions for PFun CMA model (mathematical engine)._
+_Optimized C extensions for PFun CMA model (numerical engine)._
 
 ## Usage
 
 [Python Demo Source](demo.py)
 
-## Development
+## Usage `&` Development
+
+### Install development dependencies
 
 ##
-
-    # Install development dependencies
+	# include dev deps
     $ uv sync --dev
+
+### Run demo
+
+##
+	# run interactively with ipython
+	$ uv run ipython -i -- ./demo.py
+
