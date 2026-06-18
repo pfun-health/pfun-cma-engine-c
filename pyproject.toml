@@ -1,0 +1,21 @@
+[project]
+name = "pfun-cma-engine-c"
+version = "0.1.0"
+description = "Optimized C extensions for PFun CMA model engine."
+readme = "README.md"
+requires-python = ">=3.11,<3.13"
+dependencies = []
+[build-system]
+requires = ["setuptools>=61", "wheel"]
+build-backend = "setuptools.build_meta"
+
+# Use src layout
+[tool.setuptools]
+include-package-data = true
+package-dir = { "" = "src" }
+packages = ["pfun_cma_engine"]
+
+# Declarative extension module configuration; setuptools will build a
+# Note: extension modules are declared via `setup.py` for compatibility
+# with editable builds and current setuptools behaviour. See setup.py.
+

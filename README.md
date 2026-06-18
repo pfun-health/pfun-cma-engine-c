@@ -1,3 +1,3 @@
-# pfun-cma-engine-c
+# pfun-health/pfun-cma-engine-c
 
-_pfun-cma-engine written in C._
+_Optimized C extensions for PFun CMA model (mathematical engine)._
