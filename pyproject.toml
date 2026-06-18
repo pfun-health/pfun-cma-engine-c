@@ -1,5 +1,5 @@
 [project]
-name = "pfun-cma-engine"
+name = "pfun-cma-engine-c"
 version = "0.1.0"
 description = "Optimized C extensions for PFun CMA model engine."
 readme = "README.md"
@@ -25,4 +25,5 @@ pfun_cma_engine = ["*.so", "*.py"]
 
 dev = [
     "ipython>=9.14.1",
+    "pandas>=3.0.3",
 ]

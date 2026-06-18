@@ -25,7 +25,7 @@ ext_modules = [
 ]
 
 setup(
-    name="pfun-cma-engine",
+    name="pfun-cma-engine-c",
     version="0.1.0",
     ext_modules=ext_modules,
     include_package_data=True,
