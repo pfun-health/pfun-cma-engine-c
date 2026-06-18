@@ -19,7 +19,7 @@ static struct PyModuleDef moduledef = {
 };
 
 PyMODINIT_FUNC
-PyInit_pfun_cma_engine_pfun_cma_engine(void)
+PyInit_pfun_cma_engine(void)
 {
     PyObject *m = PyModule_Create(&moduledef);
     if (!m) return NULL;
