@@ -9,8 +9,8 @@ dependencies = [
     "pfun-path-helper>=0.1.5",
 ]
 [build-system]
-requires = ["hatchling", "wheel", "setuptools"]
-build-backend = "hatchling.build"
+requires = ["setuptools>=65.5.0", "wheel"]
+build-backend = "setuptools.build_meta"
 
 [tool.hatch.build.targets.sdist]
 include = [
@@ -19,26 +19,30 @@ include = [
     "src/pfun_cma_engine.h",
 ]
 
-# Use src layout
-[tool.setuptools]
-include-package-data = true
-package_dir = {"" = "pfun_cma_engine"}
-packages = ["pfun_cma_engine", "pfun_cma_engine.pfun_cma_engine"]
+[tool.hatch.build.targets.wheel]
+include = [
+    "pfun_cma_engine/*.py",
+    "src/pfun_cma_engine.c",
+    "src/pfun_cma_engine.h",
+]
 
-# This defines the compiled module (pfun-cma-engine)
-[tool.setuptools.ext_modules.pfun_cma_engine]
-sources = ["src/pfun_cma_engine.c"]
-# Enable optimization + native CPU instructions
-extra_compile_args = ["-O3", "-march=native"]
-# Build the module inside the Python package namespace
-module_name = "pfun_cma_engine.pfun_cma_engine"
-# Make the C extension optional (fail gracefully if build tools aren't available.)
+[tool.hatch.build.targets.build_ext]
+include = [
+    "pfun_cma_engine/*.py",
+    "src/pfun_cma_engine.c",
+    "src/pfun_cma_engine.h",
+]
 
-# Declarative extension module configuration; setuptools will build a
-# Note: extension modules are declared via `setup.py` for compatibility
-# with editable builds and current setuptools behaviour. See setup.py.
+# Note: Extension modules are declared via `setup.py` for compatibility
+# with editable builds and current setuptools behaviour.
+# The setup.py builds the extension as pfun_cma_engine/pfun_cma_engine.so
+# which matches the package structure defined in package_dir.
 
 [dependency-groups]
+cext = [
+    "setuptools>=65.5.0",
+    "wheel>=0.38.4",
+]
 dev = [
     "ipython>=9.14.1",
 ]
