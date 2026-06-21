@@ -6,6 +6,8 @@ _Optimized C extensions for PFun CMA model (numerical engine)._
 
 [Python Demo Source](demo.py)
 
+See [BUILD.md](BUILD.md) for build instructions.
+
 ## Usage `&` Development
 
 ### Install development dependencies
