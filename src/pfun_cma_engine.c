@@ -66,7 +66,7 @@ void calc_M(const double *t, int N, const double *L, double d, double eps,
             int *seed, double *out) {
   for (int i = 0; i < N; i++) {
     double m_val =
-        pow((1.0 - L[i]), 3.0) * pow(cos(-(t[i] - 3.0 - d) * M_PI / 24.0), 2.0);
+      pow((1.0 - L[i]), 3.0) * pow(cos(-(t[i] - 3.0 - d) * M_PI / 24.0), 2.0);
     if (seed != NULL && *seed != 0) {
       m_val += pfun_uniform(seed, -eps, eps);
     }
@@ -78,7 +78,7 @@ void calc_c(const double *t, int N, const double *L, const double *m, double d,
             double taup, double *out) {
   for (int i = 0; i < N; i++) {
     out[i] = (4.9 / (1.0 + taup)) * M_PI * E_pfun(pow((L[i] - 0.88), 3.0)) *
-             E_pfun(0.05 * (8.0 - t[i] + d)) * E_pfun(2.0 * pow(-m[i], 3.0));
+      E_pfun(0.05 * (8.0 - t[i] + d)) * E_pfun(2.0 * pow(-m[i], 3.0));
   }
 }
 
@@ -87,10 +87,10 @@ void calc_a(const double *t, int N, const double *c, const double *m,
   for (int i = 0; i < N; i++) {
     double t_alt = 0.7 * (27.0 - t[i] + d);
     double L_alt =
-        Light_pfun(0.025 * pow((t_alt - 12.0 - d), 2.0) / (eps + taup));
+      Light_pfun(0.025 * pow((t_alt - 12.0 - d), 2.0) / (eps + taup));
     out[i] = (E_pfun(pow((-c[i] * m[i]), 3.0)) +
               exp_clipped(-0.025 * pow((t[i] - 13.0 - d), 2.0)) * L_alt) /
-             2.0;
+      2.0;
   }
 }
 
@@ -129,7 +129,7 @@ void calc_G(const double *t, int N, const double *I_E, const double *tM,
         out_g_components[j * N + i] = g_val;
         if (include_bias_in_components) {
           out_g_components[j * N + i] +=
-              B * (1.0 + meal_distr_pfun(Cm, t[i], toff));
+	    B * (1.0 + meal_distr_pfun(Cm, t[i], toff));
         }
       }
       if (out_G_instant) {
