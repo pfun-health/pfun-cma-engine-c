@@ -1,0 +1,369 @@
+<h1
+id="proposed-activity-function-extension-for-the-cma-model">PROPOSED:
+Activity Function Extension for the CMA Model</h1>
+<h2 id="motivation">1. Motivation</h2>
+<p>The current CMA model captures circadian and meal-driven glucose
+dynamics but lacks a physiologically essential dimension:
+<strong>physical activity</strong>. Skeletal muscle contractions during
+activity drive insulin-independent glucose uptake (via GLUT4
+translocation), elevate cortisol, and increase post-exercise insulin
+sensitivity. Adding an activity pathway makes the model useful for
+exercise physiology, recovery tracking, and real-world glucose
+forecasting under varying activity levels.</p>
+<h2 id="activity-input-definition">2. Activity Input Definition</h2>
+<p><strong>Raw input:</strong></p>
+<pre><code>A_raw(t) = HR(t) × SV_est(t)</code></pre>
+<p>where <code>HR(t)</code> is heart rate (bpm) and
+<code>SV_est(t)</code> is estimated stroke volume (normalized to
+<code>[0,1]</code> fraction of resting maximum).</p>
+<p><strong>Normalized activity signal:</strong></p>
+<pre><code>A(t) = sigmoid( k_A × (A_raw(t) - A_thresh) )
+     = 1 / ( 1 + exp( -2 × k_A × (A_raw(t) - A_thresh) ) )</code></pre>
+<ul>
+<li><code>k_A</code> — gain (steepness of transition), default
+<code>5.0</code></li>
+<li><code>A_thresh</code> — activation threshold, default
+<code>0.3</code></li>
+<li><code>A(t) ∈ [0, 1)</code> with sigmoid smoothness</li>
+</ul>
+<p>If <code>A_raw</code> is already pre-normalized to
+<code>[0,1]</code>, the simpler form
+<code>A(t) = clip(A_raw(t), 0, 1)</code> may be used, but the sigmoid is
+recommended for physiological realism (sub-threshold activity produces
+negligible effect; near-maximal activity saturates).</p>
+<h3 id="new-parameters">New Parameters</h3>
+<table>
+<colgroup>
+<col style="width: 28%" />
+<col style="width: 15%" />
+<col style="width: 23%" />
+<col style="width: 33%" />
+</colgroup>
+<thead>
+<tr>
+<th>Parameter</th>
+<th>Type</th>
+<th>Default</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>k_A</code></td>
+<td>double</td>
+<td>5.0</td>
+<td>Activity sigmoid gain</td>
+</tr>
+<tr>
+<td><code>A_thresh</code></td>
+<td>double</td>
+<td>0.3</td>
+<td>Activity activation threshold</td>
+</tr>
+<tr>
+<td><code>γ_A</code></td>
+<td>double</td>
+<td>0.15</td>
+<td>Direct glucose uptake coefficient (insulin-independent)</td>
+</tr>
+<tr>
+<td><code>κ_A</code></td>
+<td>double</td>
+<td>0.5</td>
+<td>Glucose uptake saturation constant</td>
+</tr>
+<tr>
+<td><code>β_A</code></td>
+<td>double</td>
+<td>0.20</td>
+<td>Activity cortisol amplification factor</td>
+</tr>
+<tr>
+<td><code>η_A</code></td>
+<td>double</td>
+<td>0.40</td>
+<td>Post-activity insulin sensitization magnitude</td>
+</tr>
+<tr>
+<td><code>τ_A</code></td>
+<td>double</td>
+<td>2.0</td>
+<td>Insulin sensitization decay time constant (hours)</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="the-activity-function-three-integration-points">3. The Activity
+Function: Three Integration Points</h2>
+<h3
+id="a.-direct-insulin-independent-glucose-uptake-contraction-mediated">3a.
+Direct Insulin-Independent Glucose Uptake (contraction-mediated)</h3>
+<p>This is the primary effect. Active skeletal muscle consumes glucose
+via GLUT4 translocation independently of insulin.</p>
+<pre><code>ΔG_A[i] = γ_A × A(t[i]) / ( 1 + κ_A × A(t[i]) )</code></pre>
+<p>The saturation form <code>A / (1 + κ_A × A)</code> ensures
+diminishing returns at high intensity, matching known physiology.</p>
+<p><strong>Affects <code>calc_G</code> (line 109 of
+<code>pfun_cma_engine.c</code>):</strong></p>
+<p>The original total glucose:</p>
+<pre><code>G_total[i] = G_bias[i] + Σⱼ gⱼ[i]</code></pre>
+<p>becomes:</p>
+<pre><code>G_total[i] = G_bias[i] + Σⱼ gⱼ[i] - ΔG_A[i]</code></pre>
+<p>Alternatively, the activity term can be incorporated as a
+multiplicative reduction of the meal glucose component:</p>
+<pre><code>G_total[i] = G_bias[i] + Σⱼ gⱼ[i] × ( 1 - ΔG_A[i] )</code></pre>
+<p>if exercise specifically suppresses post-prandial glucose
+excursions.</p>
+<h3 id="b.-activity-modulated-cortisol-elevation">3b. Activity-Modulated
+Cortisol Elevation</h3>
+<p>Acute exercise elevates cortisol, which feeds into the existing
+cortisol → insulin → glucose cascade. This creates realistic coupling:
+activity raises cortisol → suppresses insulin secretion → transiently
+elevates glucose, competing with the direct glucose uptake.</p>
+<pre><code>c_mod[i] = c_baseline[i] × ( 1 + β_A × A(t[i]) )</code></pre>
+<p>This replaces the raw <code>c[i]</code> downstream in
+<code>calc_I_S</code> (line 97). The form keeps cortisol non-negative
+and scales proportionally to baseline circadian cortisol, avoiding
+spurious elevation during periods when cortisol is naturally low.</p>
+<h3 id="c.-post-activity-insulin-sensitization-time-convolved">3c.
+Post-Activity Insulin Sensitization (time-convolved)</h3>
+<p>After activity, tissue remains more insulin-sensitive for several
+hours. This is modeled as a time convolution with an exponential kernel,
+implemented efficiently as a recursive filter:</p>
+<pre><code>s_A[0] = 0
+s_A[i] = s_A[i-1] × exp(-dt / τ_A) + η_A × A(t[i-1]) × (1 - exp(-dt / τ_A))</code></pre>
+<p>where <code>dt = t[i] - t[i-1]</code> and
+<code>s_A[i] ∈ [0, η_A)</code>.</p>
+<p>Effective extracellular insulin:</p>
+<pre><code>I_E_eff[i] = I_E[i] × ( 1 + s_A[i] )</code></pre>
+<p>The multiplicative form <code>1 + s_A[i]</code> makes it a
+<em>sensitization</em> (always ≥ 1) that decays back to baseline after
+activity ceases.</p>
+<hr />
+<h2 id="modified-model-pipeline">4. Modified Model Pipeline</h2>
+<pre><code>t (time vector)
+│
+├── calc_L  ──►  L (Light)
+│                  │
+├── calc_M  ──►  m (Melatonin)     [unchanged]
+│              │
+├── calc_c  ──►  c (Cortisol)
+│              │
+│   ★ NEW: c_mod[i] = c[i] × (1 + β_A × A(t[i]))   [activity-elevated cortisol]
+│              │
+├── calc_A  ──►  A(t) activity signal               [★ NEW intermediate]
+│   (from HR×SV_est input, via sigmoid)
+│              │
+├── calc_I_S──►  I_S = 1 - 0.23×c_mod - 0.97×m     [uses modified cortisol]
+│              │
+├── calc_I_E──►  I_E = a × I_S                      [unchanged]
+│              │
+│   ★ NEW: I_E_eff[i] = I_E[i] × (1 + s_A[i])       [post-activity sensitization]
+│              │
+└── calc_G  ──►  G = G_bias + Σ gⱼ - ΔG_A          [subtract contraction-mediated uptake]</code></pre>
+<p>New intermediate signals added: - <code>A(t)</code> — normalized
+activity signal (size N) - <code>c_mod(t)</code> — activity-modified
+cortisol (size N, replaces <code>c</code> downstream) -
+<code>I_E_eff(t)</code> — activity-sensitized extracellular insulin
+(size N, replaces <code>I_E</code> in glucose calculation) -
+<code>s_A(t)</code> — post-activity sensitivity state (size N, internal
+to sensitization filter)</p>
+<hr />
+<h2 id="updated-calc_g-with-activity">5. Updated <code>calc_G</code>
+with Activity</h2>
+<p>The modified glucose equation in full form:</p>
+<pre><code>G_bias[i] = B × (1 + meal_distr_pfun(Cm, t[i], toff))
+
+ΔG_A[i] = γ_A × A(t[i]) / (1 + κ_A × A(t[i]))
+
+G_total[i] = G_bias[i]
+           + Σⱼ[ 1.3 × K_pfun((t[i] - tmⱼ) / taugⱼ²) / (1 + I_E_eff[i]) ]
+           - ΔG_A[i]</code></pre>
+<p>All terms keep <code>G_total[i] ≥ 0</code> for physiological validity
+(<code>ΔG_A[i] &lt; G_bias[i] + Σgⱼ[i]</code> must hold for all inputs;
+the saturation term guarantees this since <code>γ_A / κ_A ≤ 0.3</code>
+by default).</p>
+<hr />
+<h2 id="api-changes">6. API Changes</h2>
+<h3 id="c-api-pfun_cma_engine.h">C API
+(<code>pfun_cma_engine.h</code>)</h3>
+<p>New signal functions:</p>
+<div class="sourceCode" id="cb12"><pre class="sourceCode c"><code class="sourceCode c"><span id="cb12-1"><a href="#cb12-1" aria-hidden="true" tabindex="-1"></a><span class="dt">void</span> calc_A<span class="op">(</span><span class="dt">const</span> <span class="dt">double</span><span class="op">*</span> t<span class="op">,</span> <span class="dt">int</span> N<span class="op">,</span> <span class="dt">const</span> <span class="dt">double</span><span class="op">*</span> A_raw<span class="op">,</span></span>
+<span id="cb12-2"><a href="#cb12-2" aria-hidden="true" tabindex="-1"></a>            <span class="dt">double</span> k_A<span class="op">,</span> <span class="dt">double</span> A_thresh<span class="op">,</span> <span class="dt">double</span><span class="op">*</span> out_A<span class="op">);</span></span>
+<span id="cb12-3"><a href="#cb12-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-4"><a href="#cb12-4" aria-hidden="true" tabindex="-1"></a><span class="dt">void</span> calc_c_mod<span class="op">(</span><span class="dt">int</span> N<span class="op">,</span> <span class="dt">const</span> <span class="dt">double</span><span class="op">*</span> c<span class="op">,</span> <span class="dt">const</span> <span class="dt">double</span><span class="op">*</span> A<span class="op">,</span></span>
+<span id="cb12-5"><a href="#cb12-5" aria-hidden="true" tabindex="-1"></a>                <span class="dt">double</span> beta_A<span class="op">,</span> <span class="dt">double</span><span class="op">*</span> out_c_mod<span class="op">);</span></span>
+<span id="cb12-6"><a href="#cb12-6" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-7"><a href="#cb12-7" aria-hidden="true" tabindex="-1"></a><span class="dt">void</span> calc_I_E_eff<span class="op">(</span><span class="dt">int</span> N<span class="op">,</span> <span class="dt">const</span> <span class="dt">double</span><span class="op">*</span> I_E<span class="op">,</span> <span class="dt">const</span> <span class="dt">double</span><span class="op">*</span> A<span class="op">,</span></span>
+<span id="cb12-8"><a href="#cb12-8" aria-hidden="true" tabindex="-1"></a>                  <span class="dt">const</span> <span class="dt">double</span><span class="op">*</span> t<span class="op">,</span> <span class="dt">double</span> eta_A<span class="op">,</span> <span class="dt">double</span> tau_A<span class="op">,</span></span>
+<span id="cb12-9"><a href="#cb12-9" aria-hidden="true" tabindex="-1"></a>                  <span class="dt">double</span><span class="op">*</span> out_I_E_eff<span class="op">,</span> <span class="dt">double</span><span class="op">*</span> out_s_A<span class="op">);</span></span></code></pre></div>
+<p>Modified <code>calc_G</code> signature adds <code>A</code> and
+<code>gamma_A</code>, <code>kappa_A</code> parameters:</p>
+<div class="sourceCode" id="cb13"><pre class="sourceCode c"><code class="sourceCode c"><span id="cb13-1"><a href="#cb13-1" aria-hidden="true" tabindex="-1"></a><span class="dt">void</span> calc_G<span class="op">(</span><span class="dt">const</span> <span class="dt">double</span><span class="op">*</span> t<span class="op">,</span> <span class="dt">int</span> N<span class="op">,</span> <span class="dt">const</span> <span class="dt">double</span><span class="op">*</span> I_E<span class="op">,</span></span>
+<span id="cb13-2"><a href="#cb13-2" aria-hidden="true" tabindex="-1"></a>            <span class="dt">const</span> <span class="dt">double</span><span class="op">*</span> A<span class="op">,</span>              <span class="co">// ★ NEW</span></span>
+<span id="cb13-3"><a href="#cb13-3" aria-hidden="true" tabindex="-1"></a>            <span class="dt">const</span> <span class="dt">double</span><span class="op">*</span> tM<span class="op">,</span> <span class="dt">int</span> n_meals<span class="op">,</span></span>
+<span id="cb13-4"><a href="#cb13-4" aria-hidden="true" tabindex="-1"></a>            <span class="dt">const</span> <span class="dt">double</span><span class="op">*</span> taug<span class="op">,</span> <span class="dt">double</span> B<span class="op">,</span> <span class="dt">double</span> Cm<span class="op">,</span> <span class="dt">double</span> toff<span class="op">,</span></span>
+<span id="cb13-5"><a href="#cb13-5" aria-hidden="true" tabindex="-1"></a>            <span class="dt">double</span> gamma_A<span class="op">,</span> <span class="dt">double</span> kappa_A<span class="op">,</span>  <span class="co">// ★ NEW</span></span>
+<span id="cb13-6"><a href="#cb13-6" aria-hidden="true" tabindex="-1"></a>            <span class="dt">int</span> include_bias_in_components<span class="op">,</span></span>
+<span id="cb13-7"><a href="#cb13-7" aria-hidden="true" tabindex="-1"></a>            <span class="dt">double</span><span class="op">*</span> out_G_instant<span class="op">,</span> <span class="dt">double</span><span class="op">*</span> out_g_components<span class="op">);</span></span></code></pre></div>
+<p>Updated <code>run_cma_model</code> signature adds:</p>
+<div class="sourceCode" id="cb14"><pre class="sourceCode c"><code class="sourceCode c"><span id="cb14-1"><a href="#cb14-1" aria-hidden="true" tabindex="-1"></a><span class="dt">void</span> run_cma_model<span class="op">(</span></span>
+<span id="cb14-2"><a href="#cb14-2" aria-hidden="true" tabindex="-1"></a>    <span class="dt">const</span> <span class="dt">double</span><span class="op">*</span> t<span class="op">,</span> <span class="dt">int</span> N<span class="op">,</span></span>
+<span id="cb14-3"><a href="#cb14-3" aria-hidden="true" tabindex="-1"></a>    <span class="dt">double</span> d<span class="op">,</span> <span class="dt">double</span> taup<span class="op">,</span> <span class="dt">double</span> taug_val<span class="op">,</span></span>
+<span id="cb14-4"><a href="#cb14-4" aria-hidden="true" tabindex="-1"></a>    <span class="dt">const</span> <span class="dt">double</span><span class="op">*</span> taug_vec<span class="op">,</span></span>
+<span id="cb14-5"><a href="#cb14-5" aria-hidden="true" tabindex="-1"></a>    <span class="dt">double</span> B<span class="op">,</span> <span class="dt">double</span> Cm<span class="op">,</span> <span class="dt">double</span> toff<span class="op">,</span></span>
+<span id="cb14-6"><a href="#cb14-6" aria-hidden="true" tabindex="-1"></a>    <span class="dt">const</span> <span class="dt">double</span><span class="op">*</span> tM<span class="op">,</span> <span class="dt">int</span> n_meals<span class="op">,</span></span>
+<span id="cb14-7"><a href="#cb14-7" aria-hidden="true" tabindex="-1"></a>    <span class="dt">int</span><span class="op">*</span> seed<span class="op">,</span> <span class="dt">double</span> eps<span class="op">,</span></span>
+<span id="cb14-8"><a href="#cb14-8" aria-hidden="true" tabindex="-1"></a>    <span class="dt">const</span> <span class="dt">double</span><span class="op">*</span> A_raw<span class="op">,</span>              <span class="co">// ★ NEW: raw activity input</span></span>
+<span id="cb14-9"><a href="#cb14-9" aria-hidden="true" tabindex="-1"></a>    <span class="dt">double</span> k_A<span class="op">,</span> <span class="dt">double</span> A_thresh<span class="op">,</span>      <span class="co">// ★ NEW: activity sigmoid params</span></span>
+<span id="cb14-10"><a href="#cb14-10" aria-hidden="true" tabindex="-1"></a>    <span class="dt">double</span> gamma_A<span class="op">,</span> <span class="dt">double</span> kappa_A<span class="op">,</span>   <span class="co">// ★ NEW: glucose uptake params</span></span>
+<span id="cb14-11"><a href="#cb14-11" aria-hidden="true" tabindex="-1"></a>    <span class="dt">double</span> beta_A<span class="op">,</span>                    <span class="co">// ★ NEW: cortisol amplification</span></span>
+<span id="cb14-12"><a href="#cb14-12" aria-hidden="true" tabindex="-1"></a>    <span class="dt">double</span> eta_A<span class="op">,</span> <span class="dt">double</span> tau_A<span class="op">,</span>       <span class="co">// ★ NEW: post-activity sensitization</span></span>
+<span id="cb14-13"><a href="#cb14-13" aria-hidden="true" tabindex="-1"></a>    <span class="dt">double</span><span class="op">*</span> out_L<span class="op">,</span> <span class="dt">double</span><span class="op">*</span> out_m<span class="op">,</span> <span class="dt">double</span><span class="op">*</span> out_c<span class="op">,</span> <span class="dt">double</span><span class="op">*</span> out_c_mod<span class="op">,</span></span>
+<span id="cb14-14"><a href="#cb14-14" aria-hidden="true" tabindex="-1"></a>    <span class="dt">double</span><span class="op">*</span> out_A<span class="op">,</span>                    <span class="co">// ★ NEW: normalized activity</span></span>
+<span id="cb14-15"><a href="#cb14-15" aria-hidden="true" tabindex="-1"></a>    <span class="dt">double</span><span class="op">*</span> out_a<span class="op">,</span> <span class="dt">double</span><span class="op">*</span> out_I_S<span class="op">,</span> <span class="dt">double</span><span class="op">*</span> out_I_E<span class="op">,</span></span>
+<span id="cb14-16"><a href="#cb14-16" aria-hidden="true" tabindex="-1"></a>    <span class="dt">double</span><span class="op">*</span> out_I_E_eff<span class="op">,</span>             <span class="co">// ★ NEW: sensitized insulin</span></span>
+<span id="cb14-17"><a href="#cb14-17" aria-hidden="true" tabindex="-1"></a>    <span class="dt">double</span><span class="op">*</span> out_s_A<span class="op">,</span>                 <span class="co">// ★ NEW: sensitivity state</span></span>
+<span id="cb14-18"><a href="#cb14-18" aria-hidden="true" tabindex="-1"></a>    <span class="dt">double</span><span class="op">*</span> out_G<span class="op">,</span> <span class="dt">double</span><span class="op">*</span> out_g</span>
+<span id="cb14-19"><a href="#cb14-19" aria-hidden="true" tabindex="-1"></a><span class="op">);</span></span></code></pre></div>
+<p>New output buffers (pre-allocated by caller): <code>out_c_mod</code>,
+<code>out_A</code>, <code>out_I_E_eff</code>, <code>out_s_A</code>.</p>
+<h3 id="python-api-pfun_cma_engine.py">Python API
+(<code>pfun_cma_engine.py</code>)</h3>
+<div class="sourceCode" id="cb15"><pre
+class="sourceCode python"><code class="sourceCode python"><span id="cb15-1"><a href="#cb15-1" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> run_cma_engine_c(</span>
+<span id="cb15-2"><a href="#cb15-2" aria-hidden="true" tabindex="-1"></a>    t: np.ndarray,</span>
+<span id="cb15-3"><a href="#cb15-3" aria-hidden="true" tabindex="-1"></a>    d: <span class="bu">float</span>,</span>
+<span id="cb15-4"><a href="#cb15-4" aria-hidden="true" tabindex="-1"></a>    taup: <span class="bu">float</span>,</span>
+<span id="cb15-5"><a href="#cb15-5" aria-hidden="true" tabindex="-1"></a>    taug_val: <span class="bu">float</span>,</span>
+<span id="cb15-6"><a href="#cb15-6" aria-hidden="true" tabindex="-1"></a>    taug_vec: Optional[np.ndarray] <span class="op">=</span> <span class="va">None</span>,</span>
+<span id="cb15-7"><a href="#cb15-7" aria-hidden="true" tabindex="-1"></a>    B: <span class="bu">float</span> <span class="op">=</span> <span class="fl">0.05</span>,</span>
+<span id="cb15-8"><a href="#cb15-8" aria-hidden="true" tabindex="-1"></a>    Cm: <span class="bu">float</span> <span class="op">=</span> <span class="fl">0.0</span>,</span>
+<span id="cb15-9"><a href="#cb15-9" aria-hidden="true" tabindex="-1"></a>    toff: <span class="bu">float</span> <span class="op">=</span> <span class="fl">0.0</span>,</span>
+<span id="cb15-10"><a href="#cb15-10" aria-hidden="true" tabindex="-1"></a>    tM: np.ndarray <span class="op">=</span> np.array([<span class="fl">7.0</span>, <span class="fl">11.0</span>, <span class="fl">17.5</span>]),</span>
+<span id="cb15-11"><a href="#cb15-11" aria-hidden="true" tabindex="-1"></a>    seed: Optional[<span class="bu">int</span>] <span class="op">=</span> <span class="va">None</span>,</span>
+<span id="cb15-12"><a href="#cb15-12" aria-hidden="true" tabindex="-1"></a>    eps: <span class="bu">float</span> <span class="op">=</span> <span class="fl">1e-18</span>,</span>
+<span id="cb15-13"><a href="#cb15-13" aria-hidden="true" tabindex="-1"></a>    <span class="co"># ★ NEW activity parameters</span></span>
+<span id="cb15-14"><a href="#cb15-14" aria-hidden="true" tabindex="-1"></a>    A_raw: Optional[np.ndarray] <span class="op">=</span> <span class="va">None</span>,</span>
+<span id="cb15-15"><a href="#cb15-15" aria-hidden="true" tabindex="-1"></a>    k_A: <span class="bu">float</span> <span class="op">=</span> <span class="fl">5.0</span>,</span>
+<span id="cb15-16"><a href="#cb15-16" aria-hidden="true" tabindex="-1"></a>    A_thresh: <span class="bu">float</span> <span class="op">=</span> <span class="fl">0.3</span>,</span>
+<span id="cb15-17"><a href="#cb15-17" aria-hidden="true" tabindex="-1"></a>    gamma_A: <span class="bu">float</span> <span class="op">=</span> <span class="fl">0.15</span>,</span>
+<span id="cb15-18"><a href="#cb15-18" aria-hidden="true" tabindex="-1"></a>    kappa_A: <span class="bu">float</span> <span class="op">=</span> <span class="fl">0.5</span>,</span>
+<span id="cb15-19"><a href="#cb15-19" aria-hidden="true" tabindex="-1"></a>    beta_A: <span class="bu">float</span> <span class="op">=</span> <span class="fl">0.20</span>,</span>
+<span id="cb15-20"><a href="#cb15-20" aria-hidden="true" tabindex="-1"></a>    eta_A: <span class="bu">float</span> <span class="op">=</span> <span class="fl">0.40</span>,</span>
+<span id="cb15-21"><a href="#cb15-21" aria-hidden="true" tabindex="-1"></a>    tau_A: <span class="bu">float</span> <span class="op">=</span> <span class="fl">2.0</span>,</span>
+<span id="cb15-22"><a href="#cb15-22" aria-hidden="true" tabindex="-1"></a>):</span></code></pre></div>
+<p>Returns:</p>
+<div class="sourceCode" id="cb16"><pre
+class="sourceCode python"><code class="sourceCode python"><span id="cb16-1"><a href="#cb16-1" aria-hidden="true" tabindex="-1"></a><span class="cf">return</span> {</span>
+<span id="cb16-2"><a href="#cb16-2" aria-hidden="true" tabindex="-1"></a>    <span class="st">&quot;G&quot;</span>: out_G,</span>
+<span id="cb16-3"><a href="#cb16-3" aria-hidden="true" tabindex="-1"></a>    <span class="st">&quot;g&quot;</span>: out_g.reshape((n_meals, N)),</span>
+<span id="cb16-4"><a href="#cb16-4" aria-hidden="true" tabindex="-1"></a>    <span class="st">&quot;I_E&quot;</span>: out_I_E,</span>
+<span id="cb16-5"><a href="#cb16-5" aria-hidden="true" tabindex="-1"></a>    <span class="st">&quot;I_E_eff&quot;</span>: out_I_E_eff,   <span class="co"># ★ NEW</span></span>
+<span id="cb16-6"><a href="#cb16-6" aria-hidden="true" tabindex="-1"></a>    <span class="st">&quot;L&quot;</span>: out_L,</span>
+<span id="cb16-7"><a href="#cb16-7" aria-hidden="true" tabindex="-1"></a>    <span class="st">&quot;m&quot;</span>: out_m,</span>
+<span id="cb16-8"><a href="#cb16-8" aria-hidden="true" tabindex="-1"></a>    <span class="st">&quot;c_mod&quot;</span>: out_c_mod,       <span class="co"># ★ NEW</span></span>
+<span id="cb16-9"><a href="#cb16-9" aria-hidden="true" tabindex="-1"></a>    <span class="st">&quot;A&quot;</span>: out_A,                <span class="co"># ★ NEW</span></span>
+<span id="cb16-10"><a href="#cb16-10" aria-hidden="true" tabindex="-1"></a>    <span class="st">&quot;s_A&quot;</span>: out_s_A,            <span class="co"># ★ NEW</span></span>
+<span id="cb16-11"><a href="#cb16-11" aria-hidden="true" tabindex="-1"></a>}</span></code></pre></div>
+<p>When <code>A_raw</code> is <code>None</code>, activity effects are
+disabled (all downstream activity terms evaluate to zero), preserving
+exact backward compatibility.</p>
+<hr />
+<h2 id="implementation-plan">7. Implementation Plan</h2>
+<h3 id="phase-1-core-c-implementation">Phase 1 — Core C
+Implementation</h3>
+<ol type="1">
+<li><p>Add <code>calc_A()</code> — normalize raw HR×SV to
+<code>[0,1)</code> via sigmoid</p></li>
+<li><p>Add <code>calc_c_mod()</code> — cortisol amplification:
+<code>c_mod = c × (1 + β_A × A)</code></p></li>
+<li><p>Add <code>calc_I_E_eff()</code> — time-convolved post-activity
+sensitization (recursive exponential filter)</p></li>
+<li><p>Modify <code>calc_G()</code> — accept new activity parameters and
+subtract <code>ΔG_A</code> from total glucose</p></li>
+<li><p>Update <code>run_cma_model()</code> — orchestrate new
+intermediate calculations in correct order:</p>
+<pre><code>calc_L → calc_M → calc_c → calc_A → calc_c_mod → calc_a → calc_I_S → calc_I_E → calc_I_E_eff → calc_G</code></pre></li>
+</ol>
+<h3 id="phase-2-python-wrapper-update">Phase 2 — Python Wrapper
+Update</h3>
+<ol start="6" type="1">
+<li>Add activity parameters to <code>run_cma_engine_c()</code> with
+defaults that disable activity when <code>A_raw=None</code></li>
+<li>Add new output buffers (<code>out_c_mod</code>, <code>out_A</code>,
+<code>out_I_E_eff</code>, <code>out_s_A</code>)</li>
+<li>Include new signals in returned dictionary (including
+<code>c_mod</code>, <code>A</code>, <code>I_E_eff</code>,
+<code>s_A</code>)</li>
+</ol>
+<h3 id="phase-3-validation">Phase 3 — Validation</h3>
+<ol start="9" type="1">
+<li>Verify backward compatibility: <code>A_raw=None</code> produces
+identical output to current model</li>
+<li>Verify monotonicity: increasing <code>A_raw</code> strictly
+decreases total glucose and increases cortisol</li>
+<li>Verify saturation: at <code>A(t)=1</code>, glucose reduction
+saturates at <code>γ_A / (1 + κ_A)</code></li>
+<li>Verify decay: post-activity insulin sensitivity returns to baseline
+within <code>~4×τ_A</code> hours</li>
+</ol>
+<hr />
+<h2 id="edge-cases-and-mathematical-guarantees">8. Edge Cases and
+Mathematical Guarantees</h2>
+<table>
+<colgroup>
+<col style="width: 34%" />
+<col style="width: 31%" />
+<col style="width: 34%" />
+</colgroup>
+<thead>
+<tr>
+<th>Condition</th>
+<th>Behavior</th>
+<th>Guarantee</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>A_raw(t) = 0</code> ∀t</td>
+<td>All activity terms vanish; model reduces to original</td>
+<td>Exact backward compatibility</td>
+</tr>
+<tr>
+<td><code>A_raw(t) = 1</code> (maximal)</td>
+<td>Maximum glucose reduction <code>γ_A/(1+κ_A)</code>, max cortisol
+<code>× (1+β_A)</code>, max sensitization <code>×(1+η_A)</code></td>
+<td><code>G(t) ≥ max(0, G_original - 0.3)</code> with defaults</td>
+</tr>
+<tr>
+<td><code>A_thresh = 0</code>, <code>k_A → ∞</code></td>
+<td>Step function: binary on/off at <code>A_raw &gt; 0</code></td>
+<td>Discontinuous; sigmoid recommended</td>
+</tr>
+<tr>
+<td><code>τ_A = 0</code></td>
+<td>Post-activity sensitization instantaneously tracks
+<code>A(t)</code></td>
+<td>Degenerate; use <code>τ_A &gt; dt</code></td>
+</tr>
+<tr>
+<td><code>β_A = 0</code></td>
+<td>No cortisol amplification</td>
+<td>Cortisol and downstream insulin unchanged</td>
+</tr>
+<tr>
+<td><code>η_A = 0</code></td>
+<td>No post-activity sensitization</td>
+<td>Only direct glucose uptake <code>ΔG_A</code> active</td>
+</tr>
+<tr>
+<td><code>γ_A = 0</code>, <code>η_A = 0</code></td>
+<td>No activity-glucose coupling</td>
+<td>Only cortisol pathway active</td>
+</tr>
+</tbody>
+</table>
+<p>All activity parameters default to zero-equivalent behavior when
+<code>A_raw</code> is <code>NULL</code>/<code>None</code> — no code
+changes needed for existing callers.</p>
