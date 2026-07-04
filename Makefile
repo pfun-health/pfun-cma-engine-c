@@ -89,6 +89,9 @@ help:
 	@echo "  llvm-verify - Verify bitcode round-trips correctly"
 	@echo "  llvm-targets - Generate assembly for ARM64/Wasm/RISC-V"
 	@echo "  analyze-ir - Report IR metrics (instruction count, etc.)"
+	@echo "  optimize-ir - Run opt pass exploration (compare -O1/-O2/-O3/-Oz)"
+	@echo "  profile-ir  - Deep IR static profile (FLOPs, mem, vectorization)"
+	@echo "  analyze-all - Run all LLVM analysis targets"
 	@echo "  help      - Show this help message"
 
 # ── LLVM IR Tooling ──────────────────────────────────────────────────────────
@@ -162,6 +165,20 @@ analyze-ir: $(LLVM_IR)
 	@grep -c '^declare ' $(LLVM_IR) || true
 	@echo "Basic blocks:"
 	@awk '/^[0-9]+:\s*$$/{count++} END{print count+0}' $(LLVM_IR) || true
+
+# Run opt pass exploration on the IR
+.PHONY: optimize-ir
+optimize-ir: $(LLVM_IR)
+	bash tools/ir-pass-explorer.sh $(LLVM_IR)
+
+# Run deep IR static profiling
+.PHONY: profile-ir
+profile-ir: $(LLVM_IR)
+	bash tools/ir-profile.sh $(LLVM_IR)
+
+# Run all LLVM-related analysis targets
+.PHONY: analyze-all
+analyze-all: analyze-ir optimize-ir profile-ir llvm-targets
 
 # Update the test target to run LLVM tests too
 .PHONY: test
