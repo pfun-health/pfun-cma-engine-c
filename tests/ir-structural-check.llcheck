@@ -1,0 +1,68 @@
+; RUN: cat %s | opt -verify | FileCheck %s
+; IR Structural Checks for pfun_cma_engine.ll
+;
+; Usage: cat build/pfun_cma_engine.ll | FileCheck tests/ir-structural-check.llcheck
+;
+; IMPORTANT: FileCheck uses CHECK-LABEL to define scan regions. Each CHECK
+; between two CHECK-LABELs is constrained to the region between those labels.
+; All checks must be ordered as they appear in the IR.
+
+; ── Target and module identity ──
+; These appear first in the IR (before any function definitions).
+; No preceding CHECK-LABEL, so they scan from the start of the file.
+
+; CHECK: target datalayout = "e-m:e-p270:
+; CHECK: target triple = "x86_64-pc-linux-gnu"
+
+; ── Low-level math functions ──
+; declare double @exp appears after @exp_clipped, before @expit.
+
+; CHECK-LABEL: @exp_clipped
+; CHECK: declare double @exp
+; CHECK-LABEL: @expit
+; CHECK-LABEL: @calc_vdep_current
+; CHECK-LABEL: @E_pfun
+; CHECK-LABEL: @Light_pfun
+; CHECK: declare double @pow
+; CHECK-LABEL: @K_pfun
+; CHECK: declare double @log
+; CHECK-LABEL: @meal_distr_pfun
+; CHECK: declare double @cos
+
+; ── Signal computation functions ──
+
+; CHECK-LABEL: @calc_L
+; CHECK-LABEL: @calc_M
+; CHECK-LABEL: @calc_c
+; CHECK-LABEL: @calc_a
+; CHECK: declare double @llvm.fmuladd.f64
+
+; ── Auto-vectorization checks ──
+; calc_I_S and calc_I_E have <2 x double> vector ops inside their bodies.
+
+; CHECK-LABEL: @calc_I_S
+; CHECK: <2 x double>
+; CHECK-LABEL: @calc_I_E
+; CHECK: <2 x double>
+; CHECK-LABEL: @calc_G
+
+; Top-level orchestrator (last function in IR)
+; CHECK-LABEL: @run_cma_model
+
+; ── Post-orchestrator section ──
+; These appear after @run_cma_model (the last function) in the IR.
+; No more CHECK-LABELs, so they scan to the end of the file.
+; Order must match the IR: declares first, then metadata.
+
+; CHECK: declare {{.*}} ptr @malloc
+; CHECK: declare void @free
+; CHECK: declare <2 x double> @llvm.fmuladd.v2f64
+; CHECK: declare void @llvm.assume
+; CHECK: clang version
+; CHECK: llvm.loop.isvectorized
+
+; ── No unintended external calls ──
+
+; CHECK-NOT: declare double @sin
+; CHECK-NOT: declare double @tan
+; CHECK-NOT: declare double @sqrt
