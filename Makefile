@@ -83,8 +83,10 @@ help:
 	@echo "  rebuild   - Clean and rebuild"
 	@echo "  debug     - Build with debug symbols"
 	@echo "  format    - Format code with clang-format"
+	@echo "  lto-test   - LTO integration test (link bitcode, compare output)"
 	@echo "  test-llvm - Compile .ll to native and validate numerical output"
 	@echo "  check-ir  - Run FileCheck structural IR validation"
+	@echo "  ir-metrics - Check IR metrics against golden reference values"
 	@echo "  llvm-ir   - Generate LLVM IR (.ll) and bitcode (.bc)"
 	@echo "  llvm-verify - Verify bitcode round-trips correctly"
 	@echo "  llvm-targets - Generate assembly for ARM64/Wasm/RISC-V"
@@ -108,6 +110,17 @@ llvm-ir:
 .PHONY: llvm-verify
 llvm-verify: $(LLVM_BC)
 	llvm-dis $(LLVM_BC) -o /dev/null && echo "✅ Bitcode round-trips OK" || echo "❌ Bitcode verification failed"
+
+# Compile with LTO using bitcode
+.PHONY: lto-test
+lto-test: $(LLVM_BC) $(BUILD_DIR)/output_gcc.txt
+	@echo "=== LTO compilation ==="
+	clang -flto -O2 -I. -o $(BUILD_DIR)/test_lto experiments/test_scaling.c $(LLVM_BC) -lm
+	@echo "=== Running LTO binary ==="
+	$(BUILD_DIR)/test_lto > $(BUILD_DIR)/output_lto.txt
+	@echo "=== Numerical diff vs GCC reference ==="
+	-diff $(BUILD_DIR)/output_gcc.txt $(BUILD_DIR)/output_lto.txt && echo "✅ LTO numerical match: GCC == LTO" || echo "⚠️  LTO numerical differences detected"
+	@rm -f $(BUILD_DIR)/test_lto $(BUILD_DIR)/output_lto.txt
 
 # Compile .ll IR to native binary and compare numerical output with GCC
 .PHONY: test-llvm
@@ -176,9 +189,14 @@ optimize-ir: $(LLVM_IR)
 profile-ir: $(LLVM_IR)
 	bash tools/ir-profile.sh $(LLVM_IR)
 
+# Check IR metrics against golden reference values
+.PHONY: ir-metrics
+ir-metrics: $(LLVM_IR)
+	bash tools/check-ir-metrics.sh $(LLVM_IR)
+
 # Run all LLVM-related analysis targets
 .PHONY: analyze-all
-analyze-all: analyze-ir optimize-ir profile-ir llvm-targets
+analyze-all: analyze-ir optimize-ir profile-ir ir-metrics llvm-targets
 
 # Update the test target to run LLVM tests too
 .PHONY: test
