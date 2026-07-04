@@ -23,8 +23,6 @@ BC_OUTPUT = os.path.join(OUTPUT_DIR, "pfun_cma_engine.bc")
 OPT_LEVEL = "-O2"
 C_STANDARD = "-std=c99"
 INCLUDE_DIRS = ["-I", "src"]
-LINK_FLAGS = ["-lm"]
-
 # Clang flags that are always used.
 BASE_CLANG_FLAGS = [
     "-S",
@@ -32,7 +30,6 @@ BASE_CLANG_FLAGS = [
     OPT_LEVEL,
     C_STANDARD,
     *INCLUDE_DIRS,
-    *LINK_FLAGS,
 ]
 
 
@@ -49,9 +46,9 @@ def _check_dependency(name: str) -> None:
         sys.exit(1)
 
 
-def _ensure_output_dir(path: str) -> None:
+def _ensure_output_dir(directory: str) -> None:
     """Create the output directory (and parents) if it does not exist."""
-    os.makedirs(path, exist_ok=True)
+    os.makedirs(directory, exist_ok=True)
 
 
 def _run(cmd: list[str], description: str) -> None:
@@ -68,10 +65,7 @@ def _run(cmd: list[str], description: str) -> None:
 
 def _print_summary(source: str, ir_path: str, bc_path: str) -> None:
     """Print a terminal-width-adaptive summary table."""
-    try:
-        width = shutil.get_terminal_size().columns
-    except ValueError:
-        width = 80
+    width = shutil.get_terminal_size().columns
 
     # Ensure a minimum width so the table is readable.
     width = max(width, 52)
@@ -107,25 +101,30 @@ def _print_summary(source: str, ir_path: str, bc_path: str) -> None:
 # ── Main ─────────────────────────────────────────────────────────────────────
 
 def main() -> None:
-    # 1. Determine source path (optional CLI argument).
+    # 1. Handle help flag.
+    if len(sys.argv) > 1 and sys.argv[1] in ("-h", "--help"):
+        print(__doc__)
+        sys.exit(0)
+
+    # 2. Determine source path (optional CLI argument).
     source = sys.argv[1] if len(sys.argv) > 1 else DEFAULT_SOURCE
 
-    # 2. Guard: source file must exist.
+    # 3. Guard: source file must exist.
     if not os.path.isfile(source):
         print(f"Error: source file not found: {source}", file=sys.stderr)
         sys.exit(1)
 
-    # 3. Guard: clang must be available.
+    # 4. Guard: clang must be available.
     _check_dependency("clang")
 
-    # 4. Create output directory.
+    # 5. Create output directory.
     _ensure_output_dir(OUTPUT_DIR)
 
-    # 5. Compile to LLVM IR (.ll).
+    # 6. Compile to LLVM IR (.ll).
     ir_cmd = ["clang", *BASE_CLANG_FLAGS, source, "-o", IR_OUTPUT]
     _run(ir_cmd, "LLVM IR generation")
 
-    # 6. Produce bitcode (.bc).
+    # 7. Produce bitcode (.bc).
     if shutil.which("llvm-as") is not None:
         bc_cmd = ["llvm-as", IR_OUTPUT, "-o", BC_OUTPUT]
         _run(bc_cmd, "bitcode assembly (llvm-as)")
@@ -138,17 +137,13 @@ def main() -> None:
             "clang",
             "-c",
             "-emit-llvm",
-            OPT_LEVEL,
-            C_STANDARD,
-            *INCLUDE_DIRS,
-            *LINK_FLAGS,
-            source,
+            IR_OUTPUT,
             "-o",
             BC_OUTPUT,
         ]
         _run(bc_cmd, "bitcode generation (clang fallback)")
 
-    # 7. Summary.
+    # 8. Summary.
     _print_summary(source, IR_OUTPUT, BC_OUTPUT)
 
     sys.exit(0)
