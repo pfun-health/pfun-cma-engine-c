@@ -9,17 +9,21 @@ dependencies = [
     "numpy>=2.2.6",
     "pfun-path-helper>=0.1.5",
 ]
+
 [build-system]
 requires = ["setuptools>=65.5.0", "wheel"]
 build-backend = "setuptools.build_meta"
 
+[tool.setuptools]
+packages = ["pfun_cma_engine"]
+
 [tool.setuptools.package-data]
-pfun_cma_engine = ["*.so", "*.py"]
+pfun_cma_engine = ["*.so", "*.a", "*.py"]
 
 
 # Note: Extension modules are declared via `setup.py` for compatibility
 # with editable builds and current setuptools behaviour.
-# The setup.py builds the extension as pfun_cma_engine/pfun_cma_engine.so
+# The setup.py builds the extension as pfun_cma_engine/libpfun_cma_engine.so
 # which matches the package structure defined in package_dir.
 
 [dependency-groups]

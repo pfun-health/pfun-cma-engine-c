@@ -5,19 +5,16 @@ and that the resulting shared library can be imported by the Python package.
 """
 
 from pathlib import Path
-from setuptools import setup, Extension
+from setuptools import setup, Extension, find_packages
 
 # Get the absolute path to src directory for include paths
 src_dir = Path("src").resolve()
 
-# Define the package directory where the compiled extension will be placed
-package_dir = Path(__file__).parent / "pfun_cma_engine"
-
 # Define the extension module
-# The extension will be built as pfun_cma_engine/pfun_cma_engine.so
+# The extension will be built as pfun_cma_engine/libpfun_cma_engine.so
 ext_modules = [
     Extension(
-        str(package_dir / "libpfun_cma_engine.so"),
+        "pfun_cma_engine.libpfun_cma_engine",
         sources=list(Path("src").glob("*.c")),
         extra_compile_args=["-O3", "-march=native"],
         include_dirs=[str(src_dir), ],
@@ -27,6 +24,7 @@ ext_modules = [
 setup(
     name="pfun-cma-engine-c",
     version="0.1.0",
+    packages=find_packages(),
     ext_modules=ext_modules,
     include_package_data=True,
     zip_safe=False,
