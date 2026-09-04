@@ -47,7 +47,7 @@ docker compose run --rm build
 ```
 
 This uses the Alpine-based `Dockerfile` and `compose.yaml` to configure and build
-the project with CMake inside a container.
+the project with CMake inside a container via `entry.sh`.
 
 ## Python Package
 
