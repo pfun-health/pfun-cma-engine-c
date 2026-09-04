@@ -11,6 +11,7 @@ RUN apk add --no-cache \
     cmake \
     musl-dev \
     llvm17 \
+    llvm17-dev \
     llvm17-static
 
 WORKDIR /workspace
@@ -20,8 +21,8 @@ ARG ENABLE_UV_DEMO_SETUP=true
 COPY pyproject.toml uv.lock ./
 
 ENV LLVM_CONFIG=/usr/bin/llvm-config-17
-ENV LLVM_DIR=/usr/lib/cmake/llvm
-ENV CMAKE_PREFIX_PATH=/usr/lib/cmake/llvm:/usr/lib/cmake
+ENV LLVM_DIR=/usr/lib/cmake/llvm17
+ENV CMAKE_PREFIX_PATH=/usr/lib/cmake/llvm17:/usr/lib/cmake
 
 RUN --mount=type=cache,target=/root/.cache/pip \
     --mount=type=cache,target=/root/.cache/uv \

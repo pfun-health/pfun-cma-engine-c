@@ -1,17 +1,17 @@
 cmake_minimum_required(VERSION 3.14)
 project(pfun-cma-engine-c VERSION 0.1.0 LANGUAGES C)
 
-# # #
-# LLVM configuration
-# # #
-find_package(LLVM REQUIRED CONFIG)
+# # # #
+# # LLVM configuration
+# # # #
+# find_package(LLVM REQUIRED CONFIG)
 
-message(STATUS "Found LLVM ${LLVM_PACKAGE_VERSION}")
-message(STATUS "Using LLVMConfig.cmake in: ${LLVM_DIR}")
+# message(STATUS "Found LLVM ${LLVM_PACKAGE_VERSION}")
+# message(STATUS "Using LLVMConfig.cmake in: ${LLVM_DIR}")
 
-include_directories(${LLVM_INCLUDE_DIRS})
-separate_arguments(LLVM_DEFINITIONS_LIST NATIVE_COMMAND ${LLVM_DEFINITIONS})
-add_definitions(${LLVM_DEFINITIONS_LIST})
+# include_directories(${LLVM_INCLUDE_DIRS})
+# separate_arguments(LLVM_DEFINITIONS_LIST NATIVE_COMMAND ${LLVM_DEFINITIONS})
+# add_definitions(${LLVM_DEFINITIONS_LIST})
 
 # # #
 # Other project settings
@@ -47,14 +47,14 @@ set_target_properties(pfun_cma_engine_static PROPERTIES
 )
 
 
-# # #
-# Linking with LLVM
-# # #
+# # # #
+# # Linking with LLVM
+# # # #
 
-# Find the libraries that correspond to the LLVM components
-# that we wish to use
-llvm_map_components_to_libnames(llvm_libs support core irreader)
+# # Find the libraries that correspond to the LLVM components
+# # that we wish to use
+# llvm_map_components_to_libnames(llvm_libs support core irreader)
 
-# Link against LLVM libraries
-target_link_libraries(pfun_cma_engine_shared ${llvm_libs})
-target_link_libraries(pfun_cma_engine_static ${llvm_libs})
+# # Link against LLVM libraries
+# target_link_libraries(pfun_cma_engine_shared ${llvm_libs})
+# target_link_libraries(pfun_cma_engine_static ${llvm_libs})

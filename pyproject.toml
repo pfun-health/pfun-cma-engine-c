@@ -5,7 +5,6 @@ description = "Optimized C extensions for PFun CMA model engine."
 readme = "README.md"
 requires-python = ">=3.11,<3.12"
 dependencies = [
-    "llvmlite==0.48.0",
     "numpy>=2.2.6",
     "pfun-path-helper>=0.1.5",
 ]
@@ -32,5 +31,6 @@ dev = [
     "ipython>=9.14.1",
     "matplotlib>=3.11.0",
     "pandas>=3.0.3",
+    "pytest>=9.1.1",
     "tabulate>=0.10.0",
 ]
