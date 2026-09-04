@@ -28,6 +28,15 @@ cmake --build build/cmake-build
 
 Outputs are placed in `pfun_cma_engine/` (same as Makefile).
 
+### Docker
+
+```sh
+docker compose run --rm build
+```
+
+This uses the Alpine-based `Dockerfile` and `compose.yaml` to configure and build
+the project with CMake inside a container.
+
 ## Python Package
 
 ### Install from source
