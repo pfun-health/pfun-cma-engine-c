@@ -2,7 +2,10 @@
 
 FROM alpine:3.20
 
-RUN apk add --no-cache build-base cmake
+RUN apk add --no-cache build-base cmake llvm llvm-dev clang lld
+
+ENV LLVM_DIR=/usr/lib/cmake/llvm
+ENV CMAKE_PREFIX_PATH=/usr/lib/cmake/llvm:/usr/lib/cmake
 
 WORKDIR /workspace
 
