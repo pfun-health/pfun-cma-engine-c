@@ -7,6 +7,18 @@
 - **Python** >= 3.11 (for Python package)
 - **uv** or pip (for Python package)
 
+### Install uv
+
+```sh
+curl -LsSf https://astral.sh/uv/install.sh | sh
+```
+
+On Windows PowerShell:
+
+```powershell
+powershell -ExecutionPolicy ByPass -c "irm https://astral.sh/uv/install.ps1 | iex"
+```
+
 ## C Library
 
 ### Makefile

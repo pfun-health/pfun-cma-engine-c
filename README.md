@@ -10,6 +10,12 @@ See [BUILD.md](BUILD.md) for build instructions.
 
 ## Usage `&` Development
 
+### Install uv
+
+```sh
+curl -LsSf https://astral.sh/uv/install.sh | sh
+```
+
 ### Install development dependencies
 
 ##
@@ -21,4 +27,3 @@ See [BUILD.md](BUILD.md) for build instructions.
 ##
 	# run interactively with ipython
 	$ uv run ipython -i -- ./demo.py
-
