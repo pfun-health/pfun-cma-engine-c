@@ -3,9 +3,9 @@ name = "pfun-cma-engine-c"
 version = "0.1.0"
 description = "Optimized C extensions for PFun CMA model engine."
 readme = "README.md"
-requires-python = ">=3.11,<3.13"
+requires-python = ">=3.11,<3.12"
 dependencies = [
-    "llvmlite>=0.48.0",
+    "llvmlite==0.48.0",
     "numpy>=2.2.6",
     "pfun-path-helper>=0.1.5",
 ]
