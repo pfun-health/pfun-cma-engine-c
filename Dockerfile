@@ -9,34 +9,19 @@ RUN apk add --no-cache \
     g++ \
     make \
     cmake \
-    musl-dev \
-    llvm17 \
-    llvm17-dev \
-    llvm17-static
+    musl-dev
 
 WORKDIR /workspace
 
-ARG ENABLE_UV_DEMO_SETUP=true
+ARG ENABLE_UV_DEMO_SETUP=false
 
 COPY pyproject.toml uv.lock ./
-
-ENV LLVM_CONFIG=/usr/bin/llvm-config-17
-ENV LLVM_DIR=/usr/lib/cmake/llvm17
-ENV CMAKE_PREFIX_PATH=/usr/lib/cmake/llvm17:/usr/lib/cmake
 
 RUN --mount=type=cache,target=/root/.cache/pip \
     --mount=type=cache,target=/root/.cache/uv \
     if [ "$ENABLE_UV_DEMO_SETUP" = "true" ]; then \
     apk add --no-cache python3 py3-pip && \
     python3 -m pip install --break-system-packages uv && \
-    cd / && \
-    git clone https://github.com/numba/llvmlite.git && \
-    cd ./llvmlite && \
-    export LLVM_CONFIG='/usr/bin/llvm-config-17' && \
-    uv run python3 setup.py build && \
-    uv run python3  setup.py install && \
-    cd /workspace && \
-    rm -rf /llvmlite && \
     uv sync --dev --no-install-project; \
     fi
 
