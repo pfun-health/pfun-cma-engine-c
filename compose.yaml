@@ -6,6 +6,4 @@ services:
     working_dir: /workspace
     volumes:
       - .:/workspace
-    command: >
-      sh -lc "cmake -S . -B build/cmake-build &&
-      cmake --build build/cmake-build"
+    command: ["build"]
