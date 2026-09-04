@@ -49,6 +49,13 @@ docker compose run --rm build
 This uses the Alpine-based `Dockerfile` and `compose.yaml` to configure and build
 the project with CMake inside a container via `entry.sh`.
 
+To also pre-install the Python package and demo dependencies with `uv` during
+image build, enable the optional build arg:
+
+```sh
+docker compose build --build-arg ENABLE_UV_DEMO_SETUP=true build
+```
+
 ## Python Package
 
 ### Install from source
