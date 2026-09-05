@@ -8,6 +8,14 @@ CFLAGS := -Wall -Wextra -O2 -std=c99
 CXXFLAGS := -Wall -Wextra -O2 -std=c++11
 LDFLAGS := -lm
 
+# Python interpreter for demo scripts (prefer project venv)
+PYTHON := $(shell test -x .venv/bin/python && echo .venv/bin/python || echo python3)
+
+# Nuklear
+NUKLEAR_DIR := third_party/nuklear
+NUKLEAR_HEADER := $(NUKLEAR_DIR)/nuklear.h
+NUKLEAR_VERSION := v4.13.3
+
 # Directories
 SRC_DIR := src
 BUILD_DIR := build
@@ -72,6 +80,32 @@ format:
 check-format:
 	clang-format --dry-run -Werror $(SRC_DIR)/*.c $(SRC_DIR)/*.h 2>/dev/null || echo "clang-format not available"
 
+# Capture demo session output to markdown
+.PHONY: demo-py-output demo-c-output outputs
+outputs: demo-py-output demo-c-output
+
+demo-py-output:
+	$(PYTHON) demo.py --save DEMO_PY_OUTPUT.md
+
+demo-c-output: demo
+	$(BUILD_DIR)/demo --ascii --save DEMO_C_OUTPUT.md
+
+# Interactive/ASCII demo (Nuklear TTY UI + terminal backend)
+.PHONY: demo
+demo: $(BUILD_DIR)/demo
+
+$(BUILD_DIR)/demo: demo.c term.c term.h $(SRC_DIR)/pfun_cma_engine.h $(NUKLEAR_HEADER) | directories
+	$(CC) $(CFLAGS) -D_DEFAULT_SOURCE -Wno-unused-function -Wno-unused-parameter \
+	  -Isrc -I$(NUKLEAR_DIR) -o $@ demo.c term.c $(SRC_DIR)/pfun_cma_engine.c $(LDFLAGS)
+
+# Fetch the pinned nuklear.h single-header (idempotent)
+.PHONY: vendor-nuklear
+vendor-nuklear: $(NUKLEAR_HEADER)
+$(NUKLEAR_HEADER):
+	@mkdir -p $(NUKLEAR_DIR)
+	curl -fsSL -o $@ \
+	  https://raw.githubusercontent.com/Immediate-Mode-UI/Nuklear/$(NUKLEAR_VERSION)/nuklear.h
+
 # Help
 .PHONY: help
 help:
@@ -79,6 +113,11 @@ help:
 	@echo "=========================="
 	@echo "Available targets:"
 	@echo "  all       - Build shared and static libraries (default)"
+	@echo "  demo      - Build interactive TTY demo (Nuklear UI)"
+	@echo "  vendor-nuklear - Fetch pinned nuklear.h into third_party/nuklear"
+	@echo "  demo-py-output - Save demo.py session to DEMO_PY_OUTPUT.md"
+	@echo "  demo-c-output  - Save demo.c session to DEMO_C_OUTPUT.md"
+	@echo "  outputs   - Generate both DEMO_*_OUTPUT.md files"
 	@echo "  clean     - Remove build artifacts"
 	@echo "  rebuild   - Clean and rebuild"
 	@echo "  debug     - Build with debug symbols"
