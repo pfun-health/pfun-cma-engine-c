@@ -1,38 +1,42 @@
 # PROPOSED: Unified Implementation Roadmap for CMA Model Extensions
 
-**Date:** 2026-07-08  
-**Status:** Planning Phase  
-**Scope:** Activity Function Extension + LLVM IR Pipeline + Review Fixes  
-**Target Release:** Q3 2026
+**Date:** 2026-09-06  
+**Status:** Implementation (core tracks complete) + TclUI Frontend approved  
+**Scope:** Activity Function Extension (complete) + LLVM IR Pipeline (Tier 1) + Review Fixes (complete) + TclUI Frontend (new)  
+**Target Release:** Q3 2026 (C / Python / LLVM Tier 1) · Q4 2026 (TclUI frontend)
 
 ---
 
 ## Executive Summary
 
-This document consolidates three distinct proposal tracks into a unified implementation roadmap:
+This document consolidates the implementation roadmap and the approved TclUI frontend proposal:
 
-1. **Activity Function Extension** — Physical activity modeling (0% complete, HIGH priority)
-2. **Review Findings & Required Fixes** — Three documented issues from mathematical review (MEDIUM priority)
-3. **LLVM IR Pipeline** — Compiler optimization and cross-platform support (20% complete, LOWER priority)
+1. **Activity Function Extension** — Physical activity modeling (**COMPLETE**; was HIGH priority)
+2. **Review Findings & Required Fixes** — Three documented issues from mathematical review (**COMPLETE — all addressed**)
+3. **LLVM IR Pipeline** — Compiler optimization and cross-platform support (**Tier 1 testing COMPLETE**; Tiers 2–3 deferred to Q4)
+4. **TclUI Frontend** — Toolkit-agnostic UI spec + Tcl/Tk reference backend (**NEW — approved 2026-09-06**; canonical PRD in `TCLUI_PRD.md`, condensed in §8)
 
 ### Current Implementation Status
 
 | Component | Status | Completion | Next Action |
 |-----------|--------|-----------|-----------|
-| **Activity functions** (`calc_A`, `calc_c_mod`, `calc_I_E_eff`) | NOT STARTED | 0% | Implement core C functions |
-| **Activity integration** in `calc_G` and `run_cma_model` | NOT STARTED | 0% | Add activity parameters to main pipeline |
-| **Python wrapper** activity support | NOT STARTED | 0% | Add activity parameters to `run_cma_engine_c()` |
-| **Review fixes** (3 issues identified) | NOT STARTED | 0% | Address HIGH priority guard, 2 MEDIUM docs |
-| **LLVM IR generation** | EXISTS | 20% | IR generation working (`convert-to-llvm.py`) |
-| **LLVM testing infrastructure** | NOT STARTED | 0% | Implement validation tests |
+| **Activity functions** (`calc_A`, `calc_c_mod`, `calc_I_E_eff`) | COMPLETE | 100% | Verified in `src/pfun_cma_engine.c/h`, covered by `tests/test_activity.py` |
+| **Activity integration** in `calc_G` and `run_cma_model` | COMPLETE | 100% | Verified; `A_raw=NULL` restores exact baseline behavior |
+| **Python wrapper** activity support | COMPLETE | 100% | `pfun_cma_engine.py` ctypes binding, all new signals returned |
+| **Review fixes** (3 issues identified) | COMPLETE | 100% | τ_A guard in code; A_raw normalization + hepatic docs in §2/§7 |
+| **LLVM IR generation** | COMPLETE | 100% | `convert-to-llvm.py` → `build/pfun_cma_engine.{ll,bc,o}` |
+| **LLVM testing infrastructure** | PARTIAL | Tier 1 | `make test-llvm`, `check-ir`, `ir-metrics`; Tiers 2–3 deferred to Q4 |
+| **TclUI frontend** (NEW) | PLANNED | 0% | Execute §8 phases; spec frozen in `TCLUI_PRD.md` |
 
 ### High-Priority Action Items (This Sprint)
 
-1. **Implement `calc_A()`, `calc_c_mod()`, `calc_I_E_eff()` C functions** — Core activity physics (4-6 hours)
-2. **Add guard for `τ_A ≤ 0` in exponential filter** — Stability fix (0.5 hours)
-3. **Update `run_cma_model()` orchestration** — Call new functions in correct order (2 hours)
-4. **Document A_raw normalization path** — Clarify sigmoid input range (1 hour)
-5. **Document hepatic counter-regulation limitation** — Update Known Limitations (0.5 hours)
+1. **Write `tclui/pfun_cma_tclui.c` engine bridge** — Tcl `pfun::` command surface (PRD §9)
+2. **Implement `ui_core.tcl` logic layer** — toolkit-free ops / state / frames + headless tests
+3. **Implement Tcl/Tk reference backend** — `backend_tk.tcl`, `theme.tcl`, `main.tcl`; feature parity with `demo.c`
+4. **Package standalone starpack** — `starpacker.tcl` pipeline → `bin/tclui-<platform>`
+5. **Regenerate `DEMO_C_OUTPUT.md`** at build time as the `--ascii` conformance baseline
+
+> Prior sprint work (activity functions, review fixes, Python wrapper, LLVM Tier 1) is complete per the status table above.
 
 ---
 
@@ -515,6 +519,9 @@ src/pfun_cma_engine.c ──[clang -S -emit-llvm -O2]──▶ build/pfun_cma_en
 
 ## Section 5: Implementation Roadmap
 
+> **Status update (2026-09-06):** Phases 1–4 below are complete (see status table).
+> The TclUI frontend roadmap and milestones live in §8.
+
 ### Phase 1: Activity Function Core Implementation (Week 1–2)
 
 **Effort:** ~16–20 hours  
@@ -675,6 +682,17 @@ calc_G(..., I_E_eff, A, ...)   // ★ MODIFIED: uses I_E_eff and activity params
 
 **Verification method:** Automated pytest suite; manual spot-check of outputs
 
+### TclUI Gate (frontend delivery — §8, canonical spec `TCLUI_PRD.md`)
+
+**Must-pass criteria:**
+- [ ] Engine bridge `pfun_cma_tclui.c` outputs match the Python wrapper within rel-tol 1e-12
+- [ ] `ui_core.tcl` logic layer passes headless unit tests (ops → state → frame) with no display
+- [ ] Tcl/Tk backend reaches every operation in PRD §6 (conformance checklist)
+- [ ] `tclui --ascii --save` matches freshly regenerated `DEMO_C_OUTPUT.md`
+- [ ] Standalone starpack `bin/tclui-<platform>` boots; `--version`/`--ascii` gates pass
+
+**Verification method:** automated headless test suite + starpack smoke test
+
 ### Release Gate (Ready for merge)
 
 **Must-pass criteria:**
@@ -726,7 +744,130 @@ These are acceptable given the model's nondimensional scope and intended use cas
 
 ---
 
-## Section 8: Implementation Checklist
+## Section 8: TclUI Frontend (`pfun-cma-tclui`) — Approved Proposal
+
+> **Canonical specification:** `TCLUI_PRD.md` (repo root). This section is the
+> condensed summary. Status: **approved 2026-09-06**, planning complete, build not
+> started.
+
+### 8.1 Guiding Directive
+
+> *"Make no assumption. Exhaustively define user interface operations in a way
+> that can be readily interpreted by existing graphics implementations of all
+> kinds."*
+
+The UI is therefore built as a **pure logic layer** + a **backend adapter**
+package. Logic layer (`ui_core.tcl`) is toolkit-free: it ingests normalized
+*semantic operations* (events) and emits abstract *frames* (render-command
+lists). Any existing graphics system — Tk, Nuklear/terminal, GTK, Qt, curses,
+web — becomes available by supplying two things: `input_adaptor(native_event)`
+and `view_sink(frame)`.
+
+```
+native input ─► [input adaptor] ─► op (semantic)
+                                  │         │
+                                  ▼         ▼
+                          ui_state   model run (dirty/auto_run)
+                                  │         │
+                                  └───► compose ──► FRAME ─► [view sink] ─► device
+```
+
+**Separation rule:** `ui_core.tcl` may not `package require Tk` nor access any
+canvas/ttk widget; it is unit-testable headless.
+
+### 8.2 Canonical Scenario (parameters)
+
+Fixed engine constants: NMEALS=3, MAXPTS=512, EPS=1e-18, seed=12345.
+
+| id | name | default | min | max | step | kind |
+|----|------|---------|-----|-----|------|------|
+| p0 | d | 1.0 | 0.0 | 4.0 | 0.1 | float |
+| p1 | taup | 1.2 | 0.0 | 4.0 | 0.1 | float |
+| p2 | taug_val | 1.0 | 0.5 | 8.0 | 0.25 | float |
+| p3 | B | 0.05 | 0.01 | 0.5 | 0.01 | float |
+| p4 | Cm | 0.0 | 0.0 | 1.0 | 0.05 | float |
+| p5 | toff | 0.0 | 0.0 | 2.0 | 0.1 | float |
+| p6–p8 | tM[0..2] | 7.0 / 11.0 / 17.5 | 0.0 | 24.0 | 0.5 | float |
+| p9 | N pts | 97 | 97 | 512 | 24 | int |
+| p10 | activity | 0 | 0 | 1 | 1 | bool |
+| p11 | A_amp | 0.4 | 0.0 | 2.0 | 0.05 | float |
+| p12 | k_A | 5.0 | 0.5 | 20.0 | 0.5 | float |
+| p13 | A_thresh | 0.3 | 0.0 | 1.0 | 0.05 | float |
+| p14 | gamma_A | 0.15 | 0.0 | 1.0 | 0.05 | float |
+| p15 | kappa_A | 0.5 | 0.0 | 3.0 | 0.1 | float |
+| p16 | beta_A | 0.20 | 0.0 | 2.0 | 0.05 | float |
+| p17 | eta_A | 0.40 | 0.0 | 2.0 | 0.05 | float |
+| p18 | tau_A | 2.0 | 0.1 | 6.0 | 0.1 | float |
+| p19 | noise | 0 | 0 | 1 | 1 | bool |
+
+**Results** (read-only): `t, L, m, c, c_mod, A, a, I_S, I_E, I_E_eff, s_A, G`
+(length N) and `g` (NMEALS×N). **Variables shown:** `G I_E I_E_eff L m c
+c_mod A s_A a I_S g` (12).
+
+### 8.3 Operations at a Glance (default keys)
+
+| group | ops (keys) |
+|---|---|
+| Focus/nav | `OP_FOCUS_VARLIST/PARAMS` (Tab), `OP_NEXT/PREV_ITEM` (j/k, ↑/↓), `OP_SELECT_VAR(i)`, `OP_SELECT_PARAM(i)`, `OP_HELP_TOGGLE` (h), `OP_QUIT` (q) |
+| Param edit | `OP_PARAM_INC/DEC` (→/←, +/−), `OP_PARAM_FINE_INC/DEC` (Shift→/←, ]/[), `OP_PARAM_SET_ABS` (GUI text), `OP_PARAM_TOGGLE` (Enter/Space), `OP_PARAM_RESET_ONE` (r), `OP_N_PTS_SET`, `OP_MEAL_SET` |
+| Model | `OP_RUN_NOW` (R), `OP_AUTO_RUN_TOGGLE` (a) |
+| Plot | `OP_PLOT_SERIES_TOGGLE` (legend click), `OP_PLOT_GRID_TOGGLE` (g), `OP_PLOT_MEALMARK_TOGGLE` (M), `OP_PLOT_INFO_AT` (hover/click), `OP_PLOT_ZOOM_X` (i/o, wheel), `OP_PLOT_PAN_X` (Shift←/→, drag), `OP_PLOT_RESET_VIEW` (0) |
+| Persistence | `OP_SCENARIO_SAVE/LOAD/RESET` (S/L/D), `OP_EXPORT_ASCII` (e) |
+| Pointing | `PTR_MOVE/DOWN/UP/SCROLL/DRAG` (region hit-tested; ops, not gestures, are normative) |
+
+All editing ops set `dirty`; with `auto_run=1` the engine recomputes before the
+next frame — observably equivalent to `demo.c` line 819.
+
+### 8.4 Regions & Render Contract
+
+Layout: `R_HEADER` / `R_VARLIST`(12) + `R_PLOT` / `R_PARAMS`(≤6 visible) +
+`R_STATUS` + `R_TOAST`; `R_HELP` overlay. If surface < 20×12 show only
+`"terminal too small (need >= 20x12)"`.
+
+Frame = ordered commands: `clear, clip, fill, frame, hline, vline, polyline,
+point, text, select_row, flush`. Semantic colors only: `border, grid, text,
+text_dim, select, highlight, series_1/2/3, warn, bg`. Frames are deterministic
+functions of `(state, results)` — testable headless.
+
+### 8.5 Engine Bridge (C ↔ Tcl)
+
+Hand-written extension `tclui/pfun_cma_tclui.c` (Critcl rejected: runtime
+compilation hostile to sealed starpacks; dev-time convenience only via Nix).
+Commands: `pfun::engine version`, `pfun::default scenario`, `pfun::run
+scenarioDict→resultsDict`, granular `pfun::calc_A/c_mod/I_E_eff/G/L…`.
+`t[i]=24·i/(N−1)`; `A_raw` from double-Gaussian at t=8,17 (demo.c 150–154) when
+`act_on`; `seed` only when `noise`; `taug_vec=NULL`. Output must match the
+Python wrapper within rel-tol 1e-12.
+
+### 8.6 Backend, Packaging, Dev Env
+
+- Files: `tclui/{pfun_cma_tclui.c, main.tcl, ui_core.tcl, backend_tk.tcl,
+  theme.tcl, model.tcl, scenario.tcl, pkgIndex.tcl}`.
+- Packaging: `packaging/starpacker` submodule (0BSD) → `tclui.vfs` → `sdx
+  qwrap` → `sdx wrap -runtime` → `bin/tclui-<platform>` (linux/darwin/windows).
+  Note: `tclkit` is not in nixpkgs; starpacker vendors its own runtimes.
+- Dev: `flake.nix` (`tcl tk tclPackages.critcl/tcllib/tclx bwidget gcc clang
+  cmake python3` + `TCLLIBPATH` shellHook); `make tclui|tclui-dev|tclui-test|
+  tclui-standalone|tclui-clean`.
+
+### 8.7 Milestones
+
+| phase | deliverable | est. |
+|---|---|---|
+| 0 | PRD + `PROPOSED.md` + scaffold `tclui/`, flake, Makefile targets | 0.5 d |
+| 1 | `pfun_cma_tclui.c` engine bridge + Tcl smoke test | 1–2 d |
+| 2 | `ui_core.tcl` logic layer + unit tests | 1–2 d |
+| 3 | Tk backend + `demo.c` feature parity | 2–3 d |
+| 4 | Activity controls, save/load, export, zoom/pan/meal markers | 1–2 d |
+| 5 | starpacker + headless conformance gates | 1 d |
+| 6 | (optional) `backend_tui.tcl` onto `term.c` | 2 d |
+
+**Out of scope:** non-Tk backends (spec-only for now), live/animated data
+streams, engine-side model changes.
+
+---
+
+## Section 9: Implementation Checklist
 
 ### Pre-Implementation
 
@@ -789,6 +930,9 @@ These are acceptable given the model's nondimensional scope and intended use cas
 
 ## References & Links
 
+### Project Proposals
+- **TCLUI_PRD.md** (repo root) — canonical, exhaustive UI-ops specification for `pfun-cma-tclui`
+
 ### Activity Function Design
 - Richter EA, Hargreaves M (2013). "Skeletal Muscle as Glucose Buffer in the Whole Body." *Physiol Rev* 93(3):993–1017. PMID: 23899560
 - Sylow L, et al. (2017). "Exercise-stimulated glucose uptake—Regulation and implications for glycemic control." *Nat Rev Endocrinol* 13(3):133–148. PMID: 27739515
@@ -810,6 +954,7 @@ These are acceptable given the model's nondimensional scope and intended use cas
 
 | Version | Date | Author | Changes |
 |---------|------|--------|---------|
+| 1.1 | 2026-09-06 | Scribe | Status refresh (activity/review/LLVM Tier 1 complete); added §8 TclUI Frontend + gate; roadmap note; canonical spec → `TCLUI_PRD.md` |
 | 1.0 | 2026-07-08 | Scribe | Unified collation of PROPOSED*.md into single roadmap |
 | — | 2026-07-04 | Build Orchestrator | Review findings (PROPOSED.changes.md) |
 | — | — | — | PROPOSED.md, PROPOSED_CMA_EXT.md (duplicate activity proposals) |
@@ -817,5 +962,5 @@ These are acceptable given the model's nondimensional scope and intended use cas
 
 ---
 
-**Status:** Ready for stakeholder review  
-**Next step:** Executive approval; begin Phase 1 implementation
+**Status:** Implementation complete for core tracks; TclUI frontend approved (Phase 0 → 1)  
+**Next step:** Begin TclUI Phase 1: `tclui/pfun_cma_tclui.c` engine bridge (§8, `TCLUI_PRD.md`)
