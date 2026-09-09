@@ -451,7 +451,7 @@ src/pfun_cma_engine.c ──[clang -S -emit-llvm -O2]──▶ build/pfun_cma_en
 #### Tier 1 — Foundation (HIGH priority, Week 1)
 
 1. **Numerical correctness validation** — Cross-compiler comparison
-   - Compile `experiments/test_scaling.c` against `.ll` IR using clang
+   - Compile `tests/test_scaling.c` against `.ll` IR using clang
    - Run both GCC and LLVM binaries, diff outputs with FP tolerance
    - Add `make test-llvm` target to Makefile
    - Integrate into CI for regression detection
