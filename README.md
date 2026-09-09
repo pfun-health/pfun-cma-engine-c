@@ -1,29 +1,31 @@
 # pfun-health/pfun-cma-engine-c
 
-_Optimized C extensions for PFun CMA model (numerical engine)._
+_Optimized C extensions for the PFun CMA model (numerical engine)._
 
-## Usage
+## Repository layout
 
-[Python Demo Source](demo.py)
+- `src/` — core C model implementation
+- `pfun_cma_engine/` — Python bindings and packaged shared library
+- `demos/` — interactive C demo plus Python scenario demos
+- `docs/` — build notes and tracked demo outputs
+- `tests/` — pytest and LLVM validation fixtures
+- `tools/` — developer utilities
 
-See [BUILD.md](BUILD.md) for build instructions.
+## Build and run
 
-## Usage `&` Development
+See [`docs/BUILD.md`](docs/BUILD.md) for build instructions.
 
-### Install uv
+### Python scenario demos
 
 ```sh
-curl -LsSf https://astral.sh/uv/install.sh | sh
+uv run python demos/python/demo.py
+uv run python demos/python/demo.py --scenario morning-run
+uv run python demos/python/demo.py --scenario evening-party
 ```
 
-### Install development dependencies
+### Interactive C demo
 
-##
-	# include dev deps
-    $ uv sync --dev
-
-### Run demo
-
-##
-	# run interactively with ipython
-	$ uv run ipython -i -- ./demo.py
+```sh
+make demo
+./build/demo
+```

@@ -14,7 +14,7 @@
 
 #include <poll.h>
 
-#include "src/pfun_cma_engine.h"
+#include "pfun_cma_engine.h"
 #include "term.h"
 
 #define MAXPTS 512
@@ -718,7 +718,7 @@ int main(int argc, char **argv) {
     int ascii_mode = 0;
     int save = 0;
     int mouse = 0;
-    const char *savepath = "DEMO_C_OUTPUT.md";
+    const char *savepath = "docs/demo_outputs/DEMO_C_OUTPUT.md";
     double pts = 97.0;
     for (int i = 1; i < argc; i++) {
         if (strcmp(argv[i], "--ascii") == 0) ascii_mode = 1;
