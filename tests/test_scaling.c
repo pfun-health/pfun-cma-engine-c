@@ -47,16 +47,20 @@ static double interp_value(const double *t, const double *x, int N, double t_tar
 }
 
 static void run_and_report(const char *label, double taup) {
-    double *L  = (double *)malloc(N_PTS * sizeof(double));
-    double *m  = (double *)malloc(N_PTS * sizeof(double));
-    double *c  = (double *)malloc(N_PTS * sizeof(double));
-    double *a  = (double *)malloc(N_PTS * sizeof(double));
-    double *IS = (double *)malloc(N_PTS * sizeof(double));
-    double *IE = (double *)malloc(N_PTS * sizeof(double));
-    double *G  = (double *)malloc(N_PTS * sizeof(double));
-    double *g  = (double *)malloc(N_PTS * N_MEALS * sizeof(double));
+    double *L      = (double *)malloc(N_PTS * sizeof(double));
+    double *m      = (double *)malloc(N_PTS * sizeof(double));
+    double *c      = (double *)malloc(N_PTS * sizeof(double));
+    double *c_mod  = (double *)malloc(N_PTS * sizeof(double));
+    double *A      = (double *)malloc(N_PTS * sizeof(double));
+    double *a      = (double *)malloc(N_PTS * sizeof(double));
+    double *IS     = (double *)malloc(N_PTS * sizeof(double));
+    double *IE     = (double *)malloc(N_PTS * sizeof(double));
+    double *IE_eff = (double *)malloc(N_PTS * sizeof(double));
+    double *s_A    = (double *)malloc(N_PTS * sizeof(double));
+    double *G      = (double *)malloc(N_PTS * sizeof(double));
+    double *g      = (double *)malloc(N_PTS * N_MEALS * sizeof(double));
 
-    if (!L || !m || !c || !a || !IS || !IE || !G || !g) {
+    if (!L || !m || !c || !c_mod || !A || !a || !IS || !IE || !IE_eff || !s_A || !G || !g) {
         fprintf(stderr, "Allocation failed\n");
         exit(1);
     }
@@ -68,20 +72,28 @@ static void run_and_report(const char *label, double taup) {
     double toff      = 0.0;
     double tM[]      = {7.0, 11.0, 17.5};
     double eps       = 1e-18;
+    double k_A       = 5.0;
+    double A_thresh  = 0.3;
+    double gamma_A   = 0.15;
+    double kappa_A   = 0.5;
+    double beta_A    = 0.2;
+    double eta_A     = 0.4;
+    double tau_A     = 2.0;
 
     run_cma_model(t_vals, N_PTS,
                   d, taup, taug_val, NULL,
                   B, Cm, toff,
                   tM, N_MEALS,
-                  NULL, eps,
-                  L, m, c, a, IS, IE, G, g);
+                  NULL, eps, NULL,
+                  k_A, A_thresh, gamma_A, kappa_A, beta_A, eta_A, tau_A,
+                  L, m, c, c_mod, A, a, IS, IE, IE_eff, s_A, G, g);
 
     printf("\n=== %s (taup = %.1f) ===\n\n", label, taup);
 
-    const char *names[] = {"L", "m", "c", "a", "I_S", "I_E", "G"};
-    double *bufs[]      = {L, m, c, a, IS, IE, G};
+    const char *names[] = {"L", "m", "c", "c_mod", "A", "a", "I_S", "I_E", "I_E_eff", "s_A", "G"};
+    double *bufs[]      = {L, m, c, c_mod, A, a, IS, IE, IE_eff, s_A, G};
 
-    for (int s = 0; s < 7; s++) {
+    for (int s = 0; s < 11; s++) {
         double mn, mean, mx;
         min_mean_max(bufs[s], N_PTS, &mn, &mean, &mx);
         printf("  %-4s  min=% .6e  mean=% .6e  max=% .6e\n", names[s], mn, mean, mx);
@@ -95,8 +107,8 @@ static void run_and_report(const char *label, double taup) {
         printf("    t=%.1f:  G=% .6e  I_E=% .6e\n", tm, g_at, ie_at);
     }
 
-    free(L); free(m); free(c); free(a);
-    free(IS); free(IE); free(G); free(g);
+    free(L); free(m); free(c); free(c_mod); free(A); free(a);
+    free(IS); free(IE); free(IE_eff); free(s_A); free(G); free(g);
 }
 
 int main(void) {
