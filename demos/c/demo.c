@@ -6,6 +6,7 @@
 
 #include <math.h>
 #include <signal.h>
+#include <stdarg.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -66,6 +67,27 @@ typedef struct {
 } ui;
 
 static struct nk_user_font ui_font;
+
+static void appendf(char *out, size_t cap, size_t *pos, const char *fmt, ...) {
+    if (*pos >= cap) return;
+
+    va_list ap;
+    va_start(ap, fmt);
+    int wrote = vsnprintf(out + *pos, cap - *pos, fmt, ap);
+    va_end(ap);
+
+    if (wrote < 0) {
+        return;
+    }
+
+    size_t avail = cap - *pos;
+    size_t wrote_sz = (size_t)wrote;
+    if (wrote_sz >= avail) {
+        *pos = cap;
+        return;
+    }
+    *pos += wrote_sz;
+}
 
 static double *res_var(results *r, int v) {
     switch (v) {
@@ -187,9 +209,8 @@ static void ascii_chart(const char *title, const double *vals, const double *t,
     double tspan = (tmax - tmin) ? (tmax - tmin) : 1.0;
 
     size_t pos = 0;
-    pos += (size_t)snprintf(out + pos, cap - pos,
-                            "%s  (t: %g .. %g, value: %g .. %g)\n",
-                            title, tmin, tmax, vmin, vmax);
+    appendf(out, cap, &pos, "%s  (t: %g .. %g, value: %g .. %g)\n",
+            title, tmin, tmax, vmin, vmax);
 
     char cells[4096];
     if ((size_t)H * (size_t)W > sizeof(cells)) { W = 60; H = 12; }
@@ -207,14 +228,13 @@ static void ascii_chart(const char *title, const double *vals, const double *t,
     }
     for (int r = 0; r < H; r++) {
         double val = vmax - (double)r / (double)(H - 1) * span;
-        pos += (size_t)snprintf(out + pos, cap - pos, "%8.3g |%.*s|\n",
-                                val, W, cells + r * W);
+        appendf(out, cap, &pos, "%8.3g |%.*s|\n", val, W, cells + r * W);
     }
     char dash[512];
     memset(dash, '-', (size_t)(W > 0 && W < 511 ? W : 0));
     dash[W] = 0;
-    pos += (size_t)snprintf(out + pos, cap - pos, "        +%s+\n", dash);
-    pos += (size_t)snprintf(out + pos, cap - pos, "        ");
+    appendf(out, cap, &pos, "        +%s+\n", dash);
+    appendf(out, cap, &pos, "        ");
     for (int x = 0; x < 5; x++) {
         double frac = (double)x / 4.0;
         char lab[32];
@@ -227,9 +247,9 @@ static void ascii_chart(const char *title, const double *vals, const double *t,
         memset(centered, ' ', sizeof(centered));
         centered[bw] = 0;
         memcpy(centered + pad, lab, l);
-        pos += (size_t)snprintf(out + pos, cap - pos, "%s", centered);
+        appendf(out, cap, &pos, "%s", centered);
     }
-    pos += (size_t)snprintf(out + pos, cap - pos, "\n");
+    appendf(out, cap, &pos, "\n");
 }
 
 static void ascii_lines_chart(const char *title, const int n,
@@ -260,19 +280,17 @@ static void ascii_lines_chart(const char *title, const int n,
     }
 
     size_t pos = 0;
-    pos += (size_t)snprintf(out + pos, cap - pos,
-                            "%s  (per-meal rows; t: %g .. %g, value: %g .. %g)\n",
-                            title, tmin, tmax, vmin, vmax);
+    appendf(out, cap, &pos, "%s  (per-meal rows; t: %g .. %g, value: %g .. %g)\n",
+            title, tmin, tmax, vmin, vmax);
     for (int r = 0; r < H; r++) {
         double val = vmax - (double)r / (double)(H - 1) * span;
-        pos += (size_t)snprintf(out + pos, cap - pos, "%8.3g |%.*s|\n",
-                                val, W, cells + r * W);
+        appendf(out, cap, &pos, "%8.3g |%.*s|\n", val, W, cells + r * W);
     }
     char dash[512];
     memset(dash, '-', W);
     dash[W] = 0;
-    pos += (size_t)snprintf(out + pos, cap - pos, "        +%s+\n", dash);
-    pos += (size_t)snprintf(out + pos, cap - pos, "        ");
+    appendf(out, cap, &pos, "        +%s+\n", dash);
+    appendf(out, cap, &pos, "        ");
     for (int x = 0; x < 5; x++) {
         double frac = (double)x / 4.0;
         char lab[32];
@@ -284,9 +302,9 @@ static void ascii_lines_chart(const char *title, const int n,
         memset(centered, ' ', sizeof(centered));
         centered[(size_t)cw > l ? (size_t)cw : l] = 0;
         memcpy(centered + pad, lab, l);
-        pos += (size_t)snprintf(out + pos, cap - pos, "%s", centered);
+        appendf(out, cap, &pos, "%s", centered);
     }
-    pos += (size_t)snprintf(out + pos, cap - pos, "\n");
+    appendf(out, cap, &pos, "\n");
 }
 
 static void txt(struct nk_command_buffer *cb, int x, int y, const char *s,
@@ -741,13 +759,13 @@ int main(int argc, char **argv) {
     if (ascii_mode) {
         char *buf = malloc(1 << 20);
         size_t pos = 0;
-        pos += (size_t)snprintf(buf + pos, (1 << 20) - pos,
-                                "# demo.c session output (`--ascii`)\n\n"
-                                "scenario: t=[0..24], N=%d, d=%g taup=%g taug_val=%g, "
-                                "B=%g Cm=%g toff=%g, tM=[%g,%g,%g], activity=%s\n\n",
-                                N, sc.d, sc.taup, sc.taug_val, sc.B, sc.Cm, sc.toff,
-                                sc.tM[0], sc.tM[1], sc.tM[2],
-                                sc.act_on ? "on" : "off");
+        appendf(buf, 1 << 20, &pos,
+                "# demo.c session output (`--ascii`)\n\n"
+                "scenario: t=[0..24], N=%d, d=%g taup=%g taug_val=%g, "
+                "B=%g Cm=%g toff=%g, tM=[%g,%g,%g], activity=%s\n\n",
+                N, sc.d, sc.taup, sc.taug_val, sc.B, sc.Cm, sc.toff,
+                sc.tM[0], sc.tM[1], sc.tM[2],
+                sc.act_on ? "on" : "off");
         for (int v = 0; v < NVAR; v++) {
             char chart[4096];
             chart[0] = 0;
@@ -758,7 +776,7 @@ int main(int argc, char **argv) {
             } else {
                 ascii_chart(VAR_NAMES[v], res_var(&res, v), res.t, N, W, H, chart, sizeof(chart));
             }
-            pos += (size_t)snprintf(buf + pos, (1 << 20) - pos, "```text\n%s```\n\n", chart);
+            appendf(buf, 1 << 20, &pos, "```text\n%s```\n\n", chart);
         }
         fwrite(buf, 1, pos, stdout);
         if (save) {
