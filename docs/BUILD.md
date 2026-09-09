@@ -93,3 +93,13 @@ make demo-evening-party
 ```
 
 Outputs are saved under `docs/demo_outputs/`.
+
+## Validation
+
+```sh
+uv run pytest tests/test_activity.py tests/test_demo_scenarios.py
+make test
+```
+
+- `tests/test_scaling.c` is the C numerical harness used by `make test-llvm` and `make lto-test`.
+- `make test` runs LLVM numerical comparison and IR structural checks.

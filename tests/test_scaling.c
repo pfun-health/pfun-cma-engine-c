@@ -1,7 +1,7 @@
 /*
  * test_scaling.c: Standalone test to report numerical ranges of the CMA model signals.
  * Compile:
- *   gcc -o test_scaling test_scaling.c src/pfun_cma_engine.c -lm
+ *   gcc -Isrc -o test_scaling tests/test_scaling.c src/pfun_cma_engine.c -lm
  * Run:
  *   ./test_scaling
  */
@@ -9,7 +9,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <math.h>
-#include "src/pfun_cma_engine.h"
+#include "pfun_cma_engine.h"
 
 #define N_PTS 1441    /* 24h * 60min + 1 */
 #define N_MEALS 3

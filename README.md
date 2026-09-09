@@ -15,6 +15,16 @@ _Optimized C extensions for the PFun CMA model (numerical engine)._
 
 See [`docs/BUILD.md`](docs/BUILD.md) for build instructions.
 
+## Validation
+
+```sh
+uv run pytest tests/test_activity.py tests/test_demo_scenarios.py
+make test
+```
+
+- Python behavior/regression coverage lives in `tests/test_activity.py` and `tests/test_demo_scenarios.py`.
+- LLVM numerical/structural validation is driven by `make test` and uses `tests/test_scaling.c`.
+
 ### Python scenario demos
 
 ```sh

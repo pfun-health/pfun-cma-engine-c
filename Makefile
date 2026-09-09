@@ -166,7 +166,7 @@ llvm-verify: $(LLVM_BC)
 .PHONY: lto-test
 lto-test: $(LLVM_BC) $(BUILD_DIR)/output_gcc.txt
 	@echo "=== LTO compilation ==="
-	clang -flto -O2 -I. -o $(BUILD_DIR)/test_lto experiments/test_scaling.c $(LLVM_BC) -lm
+	clang -flto -O2 -I$(SRC_DIR) -o $(BUILD_DIR)/test_lto tests/test_scaling.c $(LLVM_BC) -lm
 	@echo "=== Running LTO binary ==="
 	$(BUILD_DIR)/test_lto > $(BUILD_DIR)/output_lto.txt
 	@echo "=== Numerical diff vs GCC reference ==="
@@ -178,9 +178,9 @@ lto-test: $(LLVM_BC) $(BUILD_DIR)/output_gcc.txt
 test-llvm: $(LLVM_IR)
 	@mkdir -p $(BUILD_DIR)
 	@echo "=== Compiling GCC reference binary ==="
-	$(CC) -I. -o $(BUILD_DIR)/test_scaling_gcc experiments/test_scaling.c $(SRC_DIR)/pfun_cma_engine.c -lm
+	$(CC) -I$(SRC_DIR) -o $(BUILD_DIR)/test_scaling_gcc tests/test_scaling.c $(SRC_DIR)/pfun_cma_engine.c -lm
 	@echo "=== Compiling LLVM IR to native binary ==="
-	clang -I. -o $(BUILD_DIR)/test_scaling_llvm experiments/test_scaling.c $(LLVM_IR) -lm
+	clang -I$(SRC_DIR) -o $(BUILD_DIR)/test_scaling_llvm tests/test_scaling.c $(LLVM_IR) -lm
 	@echo "=== Running GCC binary ==="
 	$(BUILD_DIR)/test_scaling_gcc > $(BUILD_DIR)/output_gcc.txt
 	@echo "=== Running LLVM binary ==="
