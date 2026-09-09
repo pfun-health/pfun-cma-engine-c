@@ -153,7 +153,7 @@ LLVM_IR   := $(BUILD_DIR)/pfun_cma_engine.ll
 LLVM_BC   := $(BUILD_DIR)/pfun_cma_engine.bc
 
 # Materialize LLVM IR and bitcode outputs.
-$(LLVM_IR) $(LLVM_BC): tools/convert-to-llvm.py $(SRC_DIR)/pfun_cma_engine.c | directories
+$(LLVM_IR) $(LLVM_BC) &: tools/convert-to-llvm.py $(SRC_DIR)/pfun_cma_engine.c | directories
 	python3 tools/convert-to-llvm.py $(SRC_DIR)/pfun_cma_engine.c
 
 # Generate LLVM IR (.ll) and bitcode (.bc) from C source

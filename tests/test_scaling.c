@@ -93,7 +93,7 @@ static void run_and_report(const char *label, double taup) {
     const char *names[] = {"L", "m", "c", "c_mod", "A", "a", "I_S", "I_E", "I_E_eff", "s_A", "G"};
     double *bufs[]      = {L, m, c, c_mod, A, a, IS, IE, IE_eff, s_A, G};
 
-    for (int s = 0; s < 11; s++) {
+    for (size_t s = 0; s < sizeof(names) / sizeof(names[0]); s++) {
         double mn, mean, mx;
         min_mean_max(bufs[s], N_PTS, &mn, &mean, &mx);
         printf("  %-4s  min=% .6e  mean=% .6e  max=% .6e\n", names[s], mn, mean, mx);
