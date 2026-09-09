@@ -4,7 +4,7 @@
 
 - **C compiler** (GCC, Clang, or MSVC)
 - **CMake** >= 3.14 (optional, alternative build)
-- **Python** >= 3.11 (for Python package)
+- **Python** >= 3.11 (for Python package and Python demos)
 - **uv** or pip (for Python package)
 
 ### Install uv
@@ -66,8 +66,30 @@ uv sync --dev          # using uv (recommended)
 pip install -e .       # editable install via pip
 ```
 
-### Run demo
+## Demos
+
+### Python demos
 
 ```sh
-uv run ipython -i -- ./demo.py
+uv run python demos/python/demo.py
+uv run python demos/python/demo.py --scenario morning-run
+uv run python demos/python/demo.py --scenario evening-party
 ```
+
+### Interactive C demo
+
+```sh
+make demo
+./build/demo
+```
+
+### Tracked output snapshots
+
+```sh
+make demo-py-output
+make demo-c-output
+make demo-morning-run
+make demo-evening-party
+```
+
+Outputs are saved under `docs/demo_outputs/`.

@@ -25,7 +25,8 @@ RUN --mount=type=cache,target=/root/.cache/pip \
     uv sync --dev --no-install-project; \
     fi
 
-COPY setup.py README.md demo.py demo_jit.py ./
+COPY setup.py README.md ./
+COPY demos ./demos
 COPY pfun_cma_engine ./pfun_cma_engine
 COPY src ./src
 

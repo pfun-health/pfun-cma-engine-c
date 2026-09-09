@@ -42,16 +42,30 @@ static void put(term *t, int x, int y, uint32_t color, unsigned a) {
     t->ch[off] = 0;
 }
 
-static void alloc_screen(term *t) {
-    size_t n = (size_t)t->cols * (size_t)t->rows;
-    t->top = realloc(t->top, n * sizeof(uint32_t));
-    t->bot = realloc(t->bot, n * sizeof(uint32_t));
-    t->ch = realloc(t->ch, n);
-    memset(t->top, 0, n * sizeof(uint32_t));
-    memset(t->bot, 0, n * sizeof(uint32_t));
-    memset(t->ch, 0, n);
-    t->vw = t->cols;
-    t->vh = t->rows * 2;
+static int alloc_screen(term *t, int cols, int rows) {
+    size_t n = (size_t)cols * (size_t)rows;
+    uint32_t *top = calloc(n, sizeof(uint32_t));
+    uint32_t *bot = calloc(n, sizeof(uint32_t));
+    unsigned char *ch = calloc(n, 1);
+
+    if ((n > 0) && (!top || !bot || !ch)) {
+        free(top);
+        free(bot);
+        free(ch);
+        return 0;
+    }
+
+    free(t->top);
+    free(t->bot);
+    free(t->ch);
+    t->top = top;
+    t->bot = bot;
+    t->ch = ch;
+    t->cols = cols;
+    t->rows = rows;
+    t->vw = cols;
+    t->vh = rows * 2;
+    return 1;
 }
 
 static int query_size(int fd, int *cols, int *rows) {
@@ -82,11 +96,14 @@ void term_open(term *t, int mouse) {
     raw.c_cc[VMIN] = 1;
     raw.c_cc[VTIME] = 0;
     tcsetattr(t->fd, TCSANOW, &raw);
-    if (!query_size(t->fd, &t->cols, &t->rows)) {
-        t->cols = 80;
-        t->rows = 24;
+    int cols, rows;
+    if (!query_size(t->fd, &cols, &rows)) {
+        cols = 80;
+        rows = 24;
     }
-    alloc_screen(t);
+    if (!alloc_screen(t, cols, rows)) {
+        t->cols = t->rows = t->vw = t->vh = 0;
+    }
 #define ESTR "\033[?1049h\033[?25l\033[2J\033[H"
     write(STDOUT_FILENO, ESTR, sizeof(ESTR) - 1);
     if (mouse)
@@ -118,9 +135,8 @@ int term_resize(term *t) {
         return 0;
     if (c == t->cols && r == t->rows)
         return 0;
-    t->cols = c;
-    t->rows = r;
-    alloc_screen(t);
+    if (!alloc_screen(t, c, r))
+        return 0;
     return 1;
 }
 
@@ -315,16 +331,34 @@ void term_glyph(term *t, int x, int y, unsigned char c, uint32_t fg) {
 }
 
 void term_flush(term *t) {
+    if (!t->top || !t->bot || !t->ch || t->cols <= 0 || t->rows <= 0)
+        return;
+
     size_t cap = (size_t)t->cols * (size_t)t->rows * 32 + 256;
     if (cap > t->outcap) {
-        t->out = realloc(t->out, cap);
+        char *out = realloc(t->out, cap);
+        if (!out)
+            return;
+        t->out = out;
         t->outcap = cap;
     }
     char *o = t->out;
     size_t used = 0;
-#define EMIT(...) do { int n = snprintf(o + used, cap - used, __VA_ARGS__); if (n > 0) used += (size_t)n; } while (0)
+#define EMIT(...) do { \
+        if (used < cap) { \
+            int n = snprintf(o + used, cap - used, __VA_ARGS__); \
+            if (n < 0) { \
+                used = cap; \
+            } else if ((size_t)n >= cap - used) { \
+                used = cap; \
+            } else { \
+                used += (size_t)n; \
+            } \
+        } \
+    } while (0)
     EMIT("\033[H");
-    for (int r = 0; r < t->rows && used < cap - 512; r++) {
+    size_t soft_limit = cap > 512 ? cap - 512 : 0;
+    for (int r = 0; r < t->rows && used < soft_limit; r++) {
         size_t base = (size_t)r * (size_t)t->cols;
         int last = t->cols - 1;
         while (last >= 0 && (t->ch[base + last] == 0) &&

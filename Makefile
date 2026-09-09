@@ -20,6 +20,10 @@ NUKLEAR_VERSION := v4.13.3
 SRC_DIR := src
 BUILD_DIR := build
 LIB_DIR := pfun_cma_engine
+DEMO_C_DIR := demos/c
+DEMO_PY_DIR := demos/python
+DOCS_DIR := docs
+DEMO_OUTPUT_DIR := $(DOCS_DIR)/demo_outputs
 INCLUDE_DIR := include
 
 # Source files
@@ -81,22 +85,28 @@ check-format:
 	clang-format --dry-run -Werror $(SRC_DIR)/*.c $(SRC_DIR)/*.h 2>/dev/null || echo "clang-format not available"
 
 # Capture demo session output to markdown
-.PHONY: demo-py-output demo-c-output outputs
-outputs: demo-py-output demo-c-output
+.PHONY: demo-py-output demo-c-output demo-morning-run demo-evening-party outputs
+outputs: demo-py-output demo-c-output demo-morning-run demo-evening-party
 
 demo-py-output:
-	$(PYTHON) demo.py --save DEMO_PY_OUTPUT.md
+	$(PYTHON) $(DEMO_PY_DIR)/demo.py --save $(DEMO_OUTPUT_DIR)/DEMO_PY_OUTPUT.md
 
 demo-c-output: demo
-	$(BUILD_DIR)/demo --ascii --save DEMO_C_OUTPUT.md
+	$(BUILD_DIR)/demo --ascii --save $(DEMO_OUTPUT_DIR)/DEMO_C_OUTPUT.md
+
+demo-morning-run:
+	$(PYTHON) $(DEMO_PY_DIR)/demo.py --scenario morning-run --save $(DEMO_OUTPUT_DIR)/DEMO_MORNING_RUN_OUTPUT.md
+
+demo-evening-party:
+	$(PYTHON) $(DEMO_PY_DIR)/demo.py --scenario evening-party --save $(DEMO_OUTPUT_DIR)/DEMO_EVENING_PARTY_OUTPUT.md
 
 # Interactive/ASCII demo (Nuklear TTY UI + terminal backend)
 .PHONY: demo
 demo: $(BUILD_DIR)/demo
 
-$(BUILD_DIR)/demo: demo.c term.c term.h $(SRC_DIR)/pfun_cma_engine.h $(NUKLEAR_HEADER) | directories
+$(BUILD_DIR)/demo: $(DEMO_C_DIR)/demo.c $(DEMO_C_DIR)/term.c $(DEMO_C_DIR)/term.h $(SRC_DIR)/pfun_cma_engine.h $(NUKLEAR_HEADER) | directories
 	$(CC) $(CFLAGS) -D_DEFAULT_SOURCE -Wno-unused-function -Wno-unused-parameter \
-	  -Isrc -I$(NUKLEAR_DIR) -o $@ demo.c term.c $(SRC_DIR)/pfun_cma_engine.c $(LDFLAGS)
+	  -I$(SRC_DIR) -I$(DEMO_C_DIR) -I$(NUKLEAR_DIR) -o $@ $(DEMO_C_DIR)/demo.c $(DEMO_C_DIR)/term.c $(SRC_DIR)/pfun_cma_engine.c $(LDFLAGS)
 
 # Fetch the pinned nuklear.h single-header (idempotent)
 .PHONY: vendor-nuklear
@@ -115,9 +125,11 @@ help:
 	@echo "  all       - Build shared and static libraries (default)"
 	@echo "  demo      - Build interactive TTY demo (Nuklear UI)"
 	@echo "  vendor-nuklear - Fetch pinned nuklear.h into third_party/nuklear"
-	@echo "  demo-py-output - Save demo.py session to DEMO_PY_OUTPUT.md"
-	@echo "  demo-c-output  - Save demo.c session to DEMO_C_OUTPUT.md"
-	@echo "  outputs   - Generate both DEMO_*_OUTPUT.md files"
+	@echo "  demo-py-output - Save baseline Python demo output"
+	@echo "  demo-c-output  - Save C demo ascii output"
+	@echo "  demo-morning-run - Save morning run scenario output"
+	@echo "  demo-evening-party - Save evening meal + party scenario output"
+	@echo "  outputs   - Generate all tracked demo output files"
 	@echo "  clean     - Remove build artifacts"
 	@echo "  rebuild   - Clean and rebuild"
 	@echo "  debug     - Build with debug symbols"
@@ -143,7 +155,7 @@ LLVM_BC   := $(BUILD_DIR)/pfun_cma_engine.bc
 # Generate LLVM IR (.ll) and bitcode (.bc) from C source
 .PHONY: llvm-ir
 llvm-ir:
-	python3 convert-to-llvm.py
+	python3 tools/convert-to-llvm.py
 
 # Verify LLVM bitcode round-trips correctly
 .PHONY: llvm-verify
