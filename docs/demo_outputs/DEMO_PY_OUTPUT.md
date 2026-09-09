@@ -1,4 +1,4 @@
-# demo.py session output
+## Engine docstring
 
 Run the full CMA model engine.
 
@@ -13,6 +13,21 @@ Run the full CMA model engine.
 
     where ``CO_rest ≈ 65`` and ``CO_max ≈ 260`` (bpm × fraction).
     
+
+# Baseline circadian + meals
+
+Reference day with breakfast, lunch, and dinner and no scheduled activity.
+
+## Scenario inputs
+
+- meals (h): [7.0, 11.0, 17.5]
+- meal widths taug (h): [1.0, 1.0, 1.0]
+- activity pulses (center, width, amplitude): none
+- activity enabled: no
+- activity params: k_A=5.0, A_thresh=0.3, gamma_A=0.15, kappa_A=0.5, beta_A=0.2, eta_A=0.4, tau_A=2.0
+
+## Tabular output
+
 |       |        G |        I_E |    I_E_eff |           L |           m |         c |     c_mod |   A |   s_A |        a |       I_S |     t |
 |------:|---------:|-----------:|-----------:|------------:|------------:|----------:|----------:|----:|------:|---------:|----------:|------:|
 |  0    | 0.1      | 0.0592118  | 0.0592118  | 3.41798e-11 | 0.75        | 0.158235  | 0.158235  |   0 |     0 | 0.250785 | 0.236106  |  0    |
@@ -112,6 +127,8 @@ Run the full CMA model engine.
 | 23.5  | 0.102551 | 0.0790988  | 0.0790988  | 5.23191e-05 | 0.691233    | 0.0570718 | 0.0570718 |   0 |     0 | 0.250014 | 0.316377  | 23.5  |
 | 23.75 | 0.102096 | 0.0723483  | 0.0723483  | 1.84679e-05 | 0.721104    | 0.0484339 | 0.0484339 |   0 |     0 | 0.250004 | 0.289389  | 23.75 |
 | 24    | 0.101729 | 0.0657934  | 0.0657934  | 6.04634e-06 | 0.749986    | 0.0406062 | 0.0406062 |   0 |     0 | 0.25     | 0.263174  | 24    |
+
+## ASCII charts
 
 ```text
 G vs t  (t: 0 .. 24, value: 0.1 .. 1.08798)

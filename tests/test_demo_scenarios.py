@@ -1,4 +1,3 @@
-import os
 import sys
 from pathlib import Path
 
@@ -9,7 +8,7 @@ sys.path.insert(0, str(REPO_ROOT))
 sys.path.insert(0, str(REPO_ROOT / 'demos' / 'python'))
 
 from pfun_cma_engine.pfun_cma_engine import run_cma_engine_c
-from scenarios import BASELINE_SCENARIO, EVENING_PARTY_SCENARIO, MORNING_RUN_SCENARIO, scenario_kwargs
+from scenarios import EVENING_PARTY_SCENARIO, MORNING_RUN_SCENARIO, scenario_kwargs
 
 
 T = np.linspace(0.0, 24.0, 97)
@@ -35,8 +34,15 @@ def test_morning_run_leaves_post_run_sensitization():
     assert res['I_E_eff'][late_morning].mean() > res['I_E'][late_morning].mean()
 
 
-def test_evening_party_lowers_post_dinner_glucose_vs_baseline():
-    baseline = _run(BASELINE_SCENARIO)
+def test_evening_party_lowers_post_dinner_glucose_vs_same_meal_plan_without_activity():
+    baseline_kwargs = scenario_kwargs(EVENING_PARTY_SCENARIO, T)
+    baseline_kwargs.update({
+        'A_raw': None,
+        'gamma_A': 0.0,
+        'beta_A': 0.0,
+        'eta_A': 0.0,
+    })
+    baseline = run_cma_engine_c(**baseline_kwargs)
     party = _run(EVENING_PARTY_SCENARIO)
     dinner_window = slice(np.searchsorted(T, 19.0), np.searchsorted(T, 22.0))
     assert party['G'][dinner_window].mean() < baseline['G'][dinner_window].mean()
