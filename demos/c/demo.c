@@ -1,3 +1,15 @@
+/**
+ * @file demo.c
+ * @brief Interactive TTY demonstration and ASCII export for PFun CMA engine.
+ *
+ * Demonstrates the Circadian-Meal-Activity (CMA) physiological model using
+ * either an interactive terminal UI built with Nuklear and half-block graphics
+ * (term.h/term.c), or headless ASCII chart export to standard output and
+ * Markdown files (--ascii, --save). Provides real-time parameter tuning for
+ * circadian phase shift, photoperiod, meal timing and sensitivity, activity
+ * modulation, and stochastic noise.
+ */
+
 #define NK_INCLUDE_FIXED_TYPES
 #define NK_INCLUDE_DEFAULT_ALLOCATOR
 #define NK_INCLUDE_STANDARD_IO
@@ -18,53 +30,119 @@
 #include "pfun_cma_engine.h"
 #include "term.h"
 
+/** Maximum number of simulation time points supported by results buffers. */
 #define MAXPTS 512
+
+/** Number of discrete meals modeled across the 24-hour cycle. */
 #define NMEALS 3
+
+/** Total number of observable model variables in the CMA engine. */
 #define NVAR 12
+
+/** Small positive epsilon constant used in numerical calculations. */
 #define EPS 1e-18
 
+/** String identifiers for all 12 model output variables. */
 static const char *VAR_NAMES[NVAR] = {
     "G", "I_E", "I_E_eff", "L", "m", "c", "c_mod", "A", "s_A", "a", "I_S", "g"};
 
+/**
+ * @struct scenario
+ * @brief Simulation scenario parameters for the CMA physiological model.
+ */
 typedef struct {
-  double d, taup, taug_val;
-  double B, Cm, toff;
-  double tM[NMEALS];
-  double N;
-  double act_on;
-  double A_amp, k_A, A_thresh, gamma_A, kappa_A, beta_A, eta_A, tau_A;
-  double noise;
+  double d;          /**< Circadian phase shift parameter (hours). */
+  double taup;       /**< Circadian photoperiod parameter (hours). */
+  double taug_val;   /**< Characteristic postprandial glucose clearance time constant (hours). */
+  double B;          /**< Baseline bias constant in glucose dynamics. */
+  double Cm;         /**< Cortisol temporal sensitivity coefficient on meal response. */
+  double toff;       /**< Meal-relative time offset (hours). */
+  double tM[NMEALS]; /**< Meal ingestion times across the 24-hour cycle (hours). */
+  double N;          /**< Number of simulation time points. */
+  double act_on;     /**< Non-zero to enable physical activity profile. */
+  double A_amp;      /**< Amplitude scaling for physical activity peaks. */
+  double k_A;        /**< Sigmoid gain (steepness) for activity normalization. */
+  double A_thresh;   /**< Activation threshold (half-maximal point) for activity. */
+  double gamma_A;    /**< Direct contraction-mediated glucose uptake coefficient. */
+  double kappa_A;    /**< Direct glucose uptake saturation constant. */
+  double beta_A;     /**< Cortisol amplification factor under physical exertion. */
+  double eta_A;      /**< Magnitude of post-activity insulin sensitization. */
+  double tau_A;      /**< Exponential decay time constant for post-activity sensitization (hours). */
+  double noise;      /**< Non-zero to enable stochastic noise in simulation. */
 } scenario;
 
+/**
+ * @struct cparam
+ * @brief Interactive parameter descriptor binding a scenario variable to the TUI.
+ */
 typedef struct {
-  const char *name;
-  double *val;
-  double lo, hi, step;
-  int is_bool;
+  const char *name; /**< Parameter display name in the TUI panel. */
+  double *val;      /**< Pointer to the underlying variable in the active scenario. */
+  double lo;        /**< Lower bound for adjustment. */
+  double hi;        /**< Upper bound for adjustment. */
+  double step;      /**< Increment/decrement step size. */
+  int is_bool;      /**< 1 if parameter is a boolean toggle; 0 for continuous numeric. */
 } cparam;
 
+/**
+ * @struct results
+ * @brief Output trajectory buffers for all CMA model state variables.
+ */
 typedef struct {
-  double L[MAXPTS], m[MAXPTS], c[MAXPTS], c_mod[MAXPTS], A[MAXPTS], a[MAXPTS],
-      I_S[MAXPTS], I_E[MAXPTS], I_E_eff[MAXPTS], s_A[MAXPTS], G[MAXPTS];
-  double g[NMEALS * MAXPTS];
-  double t[MAXPTS];
+  double L[MAXPTS];          /**< Light signal / photic drive trajectory. */
+  double m[MAXPTS];          /**< Melatonin trajectory. */
+  double c[MAXPTS];          /**< Baseline cortisol trajectory. */
+  double c_mod[MAXPTS];      /**< Activity-modulated cortisol trajectory. */
+  double A[MAXPTS];          /**< Normalized activity signal. */
+  double a[MAXPTS];          /**< Circadian arousal / sleep-wake drive. */
+  double I_S[MAXPTS];        /**< Stored / endogenous insulin drive. */
+  double I_E[MAXPTS];        /**< Extracellular insulin trajectory. */
+  double I_E_eff[MAXPTS];    /**< Effective sensitized insulin trajectory. */
+  double s_A[MAXPTS];        /**< Post-activity insulin sensitization state. */
+  double G[MAXPTS];          /**< Instantaneous blood glucose trajectory. */
+  double g[NMEALS * MAXPTS]; /**< Per-meal postprandial glucose components (NMEALS x N). */
+  double t[MAXPTS];          /**< Simulation time points vector (hours [0..24]). */
 } results;
 
+/**
+ * @struct ui
+ * @brief Interactive terminal user interface state.
+ */
 typedef struct {
-  int sel;
-  int panel;
-  int pfocus;
-  int poff;
-  int help;
-  int quit;
-  int redraw;
-  int lw, hdr;
-  int pl_x, pl_y, pl_w, pl_h;
-  int pp_x, pp_y, pp_w, pp_h;
+  int sel;    /**< Index of selected model variable to plot [0..NVAR-1]. */
+  int panel;  /**< Active panel index (0 = variable list, 1 = parameter editor). */
+  int pfocus; /**< Index of focused parameter in parameter panel [0..NPARAM-1]. */
+  int poff;   /**< Vertical scroll offset in parameter panel. */
+  int help;   /**< 1 if help modal overlay is visible; 0 otherwise. */
+  int quit;   /**< 1 to exit application event loop; 0 to continue. */
+  int redraw; /**< 1 if screen needs re-rasterizing and flushing; 0 otherwise. */
+  int lw;     /**< Left sidebar width in virtual pixels. */
+  int hdr;    /**< Header bar height in virtual pixels. */
+  int pl_x;   /**< Plot area left X coordinate. */
+  int pl_y;   /**< Plot area top Y coordinate. */
+  int pl_w;   /**< Plot area width in virtual pixels. */
+  int pl_h;   /**< Plot area height in virtual pixels. */
+  int pp_x;   /**< Parameter panel left X coordinate. */
+  int pp_y;   /**< Parameter panel top Y coordinate. */
+  int pp_w;   /**< Parameter panel width in virtual pixels. */
+  int pp_h;   /**< Parameter panel height in virtual pixels. */
 } ui;
 
+/** User font configuration used by Nuklear for text rendering metrics. */
 static struct nk_user_font ui_font;
 
+/**
+ * @brief Safe formatted string append with buffer capacity and write position tracking.
+ *
+ * Formats a string into out at offset *pos, ensuring no writes occur past cap.
+ * Advances *pos by the number of characters written.
+ *
+ * @param out Destination character buffer.
+ * @param cap Total capacity of out.
+ * @param pos In/out pointer tracking current insertion offset in out.
+ * @param fmt Printf-style format string.
+ * @param ... Variadic arguments matching format specifiers.
+ */
 static void appendf(char *out, size_t cap, size_t *pos, const char *fmt, ...) {
   if (*pos >= cap)
     return;
@@ -87,6 +165,16 @@ static void appendf(char *out, size_t cap, size_t *pos, const char *fmt, ...) {
   *pos += wrote_sz;
 }
 
+/**
+ * @brief Retrieve pointer to results array corresponding to variable index.
+ *
+ * Maps variable index [0..10] to the corresponding array in results.
+ * Returns NULL for index 11 ('g', which is a multi-meal matrix).
+ *
+ * @param r Pointer to simulation results.
+ * @param v Variable index [0..NVAR-1].
+ * @return Pointer to variable time series array, or NULL if multi-series/invalid.
+ */
 static double *res_var(results *r, int v) {
   switch (v) {
   case 0:
@@ -116,6 +204,17 @@ static double *res_var(results *r, int v) {
   }
 }
 
+/**
+ * @brief Nuklear font width callback for monospace terminal font.
+ *
+ * Treats each character as 1 pixel wide in virtual screen coordinates.
+ *
+ * @param h User font handle (unused).
+ * @param height Font height (unused).
+ * @param text Text string.
+ * @param len String length in bytes.
+ * @return Computed width in virtual pixels (equals len).
+ */
 static float font_width(nk_handle h, float height, const char *text, int len) {
   (void)h;
   (void)height;
@@ -123,6 +222,15 @@ static float font_width(nk_handle h, float height, const char *text, int len) {
   return (float)len;
 }
 
+/**
+ * @brief Initialize a scenario with default baseline physiological parameters.
+ *
+ * Configures default 24-hour cycle with 3 meals (breakfast at 7.0h, lunch at 11.0h,
+ * dinner at 17.5h), baseline glucose dynamics, and default exercise response constants.
+ *
+ * @param sc Pointer to scenario struct to populate.
+ * @param npts Number of simulation time points.
+ */
 static void scenario_default(scenario *sc, double npts) {
   sc->d = 1.0;
   sc->taup = 1.2;
@@ -146,7 +254,18 @@ static void scenario_default(scenario *sc, double npts) {
   sc->noise = 0;
 }
 
+/** Number of interactive parameters available in the TUI parameter panel. */
 #define NPARAM 20
+
+/**
+ * @brief Build parameter descriptors array bound to scenario fields.
+ *
+ * Configures names, pointers, bounds, step sizes, and boolean flags for all
+ * 20 tunable parameters in the interactive interface.
+ *
+ * @param sc Pointer to active scenario struct.
+ * @param p Output array of NPARAM cparam descriptors.
+ */
 static void scenario_params(scenario *sc, cparam *p) {
   p[0] = (cparam){"d", &sc->d, 0.0, 4.0, 0.1, 0};
   p[1] = (cparam){"taup", &sc->taup, 0.0, 4.0, 0.1, 0};
@@ -170,6 +289,17 @@ static void scenario_params(scenario *sc, cparam *p) {
   p[19] = (cparam){"noise", &sc->noise, 0.0, 1.0, 1.0, 0};
 }
 
+/**
+ * @brief Execute the CMA physiological model simulation for a given scenario.
+ *
+ * Populates time vector t linearly from 0 to 24 hours. If physical activity is
+ * enabled (act_on), synthesizes a bimodal Gaussian exercise profile (morning run
+ * around 8h, late afternoon run around 17h). Passes all parameters to the C
+ * engine function run_cma_model to compute trajectories for all variables.
+ *
+ * @param sc Pointer to configured simulation scenario.
+ * @param r Output results struct receiving computed state variable trajectories.
+ */
 static void scenario_run(const scenario *sc, results *r) {
   int N = (int)sc->N;
   if (N < 2)
@@ -198,6 +328,22 @@ static void scenario_run(const scenario *sc, results *r) {
                 r->I_E, r->I_E_eff, r->s_A, r->G, r->g);
 }
 
+/**
+ * @brief Render a single trajectory as a monospace ASCII chart with axes.
+ *
+ * Generates an ASCII plot with labeled Y-axis values, coordinate frame borders,
+ * interpolated points, and centered time values on the X-axis. Appends the
+ * formatted chart to out.
+ *
+ * @param title Chart header title (variable name).
+ * @param vals Array of data values (size N).
+ * @param t Array of time coordinates (size N).
+ * @param N Number of data points.
+ * @param W Plot width in characters.
+ * @param H Plot height in characters.
+ * @param out Destination text buffer.
+ * @param cap Maximum capacity of destination text buffer.
+ */
 static void ascii_chart(const char *title, const double *vals, const double *t,
                         int N, int W, int H, char *out, size_t cap) {
   double vmin = vals[0], vmax = vals[0], tmin = t[0], tmax = t[N - 1];
@@ -257,6 +403,22 @@ static void ascii_chart(const char *title, const double *vals, const double *t,
   appendf(out, cap, &pos, "\n");
 }
 
+/**
+ * @brief Render multiple overlaid trajectories as an ASCII chart with distinct markers.
+ *
+ * Overlays n series (e.g. per-meal postprandial glucose components) onto a shared
+ * ASCII grid using distinct marker characters ('#', '*', '+', 'x', 'o', 'O', '@').
+ *
+ * @param title Chart header title.
+ * @param n Number of series to plot (e.g. NMEALS).
+ * @param series Array of pointers to data series arrays (each of size N).
+ * @param t Array of time coordinates (size N).
+ * @param N Number of data points per series.
+ * @param W Plot width in characters.
+ * @param H Plot height in characters.
+ * @param out Destination text buffer.
+ * @param cap Maximum capacity of destination text buffer.
+ */
 static void ascii_lines_chart(const char *title, const int n,
                               const double *const *series, const double *t,
                               int N, int W, int H, char *out, size_t cap) {
@@ -317,16 +479,41 @@ static void ascii_lines_chart(const char *title, const int n,
   appendf(out, cap, &pos, "\n");
 }
 
+/**
+ * @brief Draw a text string onto the Nuklear command buffer.
+ *
+ * @param cb Nuklear command buffer.
+ * @param x Virtual pixel X coordinate.
+ * @param y Virtual pixel Y coordinate.
+ * @param s String to draw.
+ * @param c Font color.
+ */
 static void txt(struct nk_command_buffer *cb, int x, int y, const char *s,
                 struct nk_color c) {
   nk_draw_text(cb, nk_rect((float)x, (float)y, (float)strlen(s), 2.0f), s,
                (int)strlen(s), &ui_font, c, nk_rgb(0, 0, 0));
 }
 
+/**
+ * @brief Pack a Nuklear RGB color structure into a 32-bit integer (0x00RRGGBB).
+ *
+ * @param c Nuklear color.
+ * @return Packed 32-bit RGB color.
+ */
 static uint32_t pack(struct nk_color c) {
   return ((uint32_t)c.r << 16) | ((uint32_t)c.g << 8) | (uint32_t)c.b;
 }
 
+/**
+ * @brief Translate Nuklear drawing commands into terminal canvas raster operations.
+ *
+ * Iterates through all commands in the Nuklear context (scissors, lines, rectangles,
+ * filled rectangles, triangles, circles, polygons, and text glyphs) and dispatches
+ * them to the underlying term rasterization functions.
+ *
+ * @param t Pointer to terminal canvas.
+ * @param ctx Pointer to Nuklear GUI context.
+ */
 static void rasterize(term *t, struct nk_context *ctx) {
   term_clip_off(t);
   const struct nk_command *c;
@@ -393,7 +580,7 @@ static void rasterize(term *t, struct nk_context *ctx) {
                     pack(pg->color));
       int last = 2 * (pg->point_count - 1);
       term_line(t, pg->points[last].x, pg->points[last].y, pg->points[0].x,
-                pg->points[0].y, pack(pg->color));
+                    pg->points[0].y, pack(pg->color));
       break;
     }
     case NK_COMMAND_POLYGON_FILLED: {
@@ -428,6 +615,22 @@ static void rasterize(term *t, struct nk_context *ctx) {
   term_clip_off(t);
 }
 
+/**
+ * @brief Render the simulation trajectory plot in the TUI window.
+ *
+ * Draws the bounding box, background grid lines, variable title, coordinate scale
+ * labels, and plot lines. For per-meal components (sel == 11), draws multiple
+ * color-coded curves with a meal legend; for other variables, draws a single curve.
+ *
+ * @param cb Nuklear command buffer.
+ * @param px Left coordinate of plot area.
+ * @param py Top coordinate of plot area.
+ * @param pw Width of plot area.
+ * @param ph Height of plot area.
+ * @param sc Active simulation scenario.
+ * @param res Simulation results containing variable trajectories.
+ * @param sel Selected variable index [0..NVAR-1].
+ */
 static void draw_plot(struct nk_command_buffer *cb, int px, int py, int pw,
                       int ph, const scenario *sc, const results *res, int sel) {
   struct nk_color border = nk_rgb(150, 150, 150);
@@ -529,6 +732,19 @@ static void draw_plot(struct nk_command_buffer *cb, int px, int py, int pw,
   txt(cb, ax + aw - 12, ay + ah, label, textcol);
 }
 
+/**
+ * @brief Build the complete Nuklear TUI layout for the current frame.
+ *
+ * Constructs the header bar, left-hand variable selection sidebar, central plot
+ * canvas, bottom parameter adjustment panel, and optional help overlay modal.
+ *
+ * @param ctx Nuklear GUI context.
+ * @param t Pointer to terminal canvas.
+ * @param sc Active simulation scenario.
+ * @param res Current simulation results.
+ * @param u Pointer to TUI state struct.
+ * @param params Array of tunable parameter descriptors.
+ */
 static void draw_ui(struct nk_context *ctx, term *t, const scenario *sc,
                     const results *res, ui *u, cparam *params) {
   int vw = t->vw, vh = t->vh;
@@ -644,6 +860,18 @@ static void draw_ui(struct nk_context *ctx, term *t, const scenario *sc,
   nk_end(ctx);
 }
 
+/**
+ * @brief Parse ANSI SGR 1006 extended mouse tracking escape sequences.
+ *
+ * Decodes sequences of the format "\033[<b;x;yM" or "\033[<b;x;ym" and feeds
+ * corresponding motion, button press/release, or scroll events into the Nuklear context.
+ *
+ * @param t Pointer to terminal canvas (unused).
+ * @param ctx Nuklear GUI context.
+ * @param s Raw escape sequence byte buffer.
+ * @param len Length of escape sequence in bytes.
+ * @param u Pointer to TUI state struct (sets redraw flag on mouse event).
+ */
 static void csi_mouse(term *t, struct nk_context *ctx, const unsigned char *s,
                       int len, ui *u) {
   (void)t;
@@ -686,6 +914,18 @@ static void csi_mouse(term *t, struct nk_context *ctx, const unsigned char *s,
   u->redraw = 1;
 }
 
+/**
+ * @brief Parse raw terminal input bytes into keyboard and mouse events.
+ *
+ * Buffers ANSI escape sequences, recognizing arrow keys, Home/End, mouse events,
+ * and standard keys (Tab, j/k, +/-, Enter, h, q) to update UI navigation and flags.
+ *
+ * @param t Pointer to terminal canvas.
+ * @param ctx Nuklear GUI context.
+ * @param u Pointer to TUI state struct.
+ * @param buf Input byte buffer.
+ * @param n Number of bytes available in buf.
+ */
 static void process_bytes(term *t, struct nk_context *ctx, ui *u,
                           const unsigned char *buf, int n) {
   static unsigned char seq[64];
@@ -797,18 +1037,53 @@ static void process_bytes(term *t, struct nk_context *ctx, ui *u,
   }
 }
 
+/** Atomic flag set by SIGWINCH handler indicating terminal window resize. */
 static volatile sig_atomic_t g_resize = 0;
+
+/**
+ * @brief Signal handler for SIGWINCH (window resize).
+ *
+ * Sets the g_resize flag to trigger terminal buffer reallocation on next event loop iteration.
+ *
+ * @param sig Signal number (SIGWINCH).
+ */
 static void on_sigwinch(int sig) {
   (void)sig;
   g_resize = 1;
 }
+
+/** Global terminal context pointer used by cleanup signal handler. */
 static term *g_term;
+
+/**
+ * @brief Signal handler for SIGINT and SIGTERM to restore terminal state before exit.
+ *
+ * Ensures alternate screen is exited, cursor restored, and termios settings reverted
+ * before terminating process.
+ *
+ * @param sig Signal number received.
+ */
 static void cleanup_and_exit(int sig) {
   (void)sig;
   term_close(g_term);
   _exit(128 + (sig == 0 ? 128 : sig));
 }
 
+/**
+ * @brief Application entry point for CMA demo.
+ *
+ * Parses command-line flags (--ascii, --save FILE, --pts N, --mouse, --help).
+ * In ASCII mode, runs a single simulation, generates ASCII charts for all 12
+ * variables, prints to stdout, and optionally saves to file.
+ * In interactive mode, initializes raw terminal and Nuklear context, runs the
+ * event loop with poll(), processes keyboard/mouse input, recalculates simulation
+ * trajectories dynamically upon parameter changes, rasterizes the UI, and flushes
+ * to the terminal.
+ *
+ * @param argc Number of command-line arguments.
+ * @param argv Array of command-line argument strings.
+ * @return 0 on successful termination.
+ */
 int main(int argc, char **argv) {
   int ascii_mode = 0;
   int save = 0;
