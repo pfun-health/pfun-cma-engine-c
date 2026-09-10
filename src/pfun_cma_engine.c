@@ -66,7 +66,7 @@ void calc_M(const double *t, int N, const double *L, double d, double eps,
             int *seed, double *out) {
   for (int i = 0; i < N; i++) {
     double m_val =
-      pow((1.0 - L[i]), 3.0) * pow(cos(-(t[i] - 3.0 - d) * M_PI / 24.0), 2.0);
+        pow((1.0 - L[i]), 3.0) * pow(cos(-(t[i] - 3.0 - d) * M_PI / 24.0), 2.0);
     if (seed != NULL && *seed != 0) {
       m_val += pfun_uniform(seed, -eps, eps);
     }
@@ -78,7 +78,7 @@ void calc_c(const double *t, int N, const double *L, const double *m, double d,
             double taup, double *out) {
   for (int i = 0; i < N; i++) {
     out[i] = (4.9 / (1.0 + taup)) * M_PI * E_pfun(pow((L[i] - 0.88), 3.0)) *
-      E_pfun(0.05 * (8.0 - t[i] + d)) * E_pfun(2.0 * pow(-m[i], 3.0));
+             E_pfun(0.05 * (8.0 - t[i] + d)) * E_pfun(2.0 * pow(-m[i], 3.0));
   }
 }
 
@@ -87,10 +87,10 @@ void calc_a(const double *t, int N, const double *c, const double *m,
   for (int i = 0; i < N; i++) {
     double t_alt = 0.7 * (27.0 - t[i] + d);
     double L_alt =
-      Light_pfun(0.025 * pow((t_alt - 12.0 - d), 2.0) / (eps + taup));
+        Light_pfun(0.025 * pow((t_alt - 12.0 - d), 2.0) / (eps + taup));
     out[i] = (E_pfun(pow((-c[i] * m[i]), 3.0)) +
               exp_clipped(-0.025 * pow((t[i] - 13.0 - d), 2.0)) * L_alt) /
-      2.0;
+             2.0;
   }
 }
 
@@ -108,7 +108,8 @@ void calc_I_E(int N, const double *a, const double *I_S, double *out) {
 
 void calc_A(const double *t, int N, const double *A_raw, double k_A,
             double A_thresh, double *out_A) {
-  (void)t; /* t parameter reserved for future use (e.g., time-varying threshold) */
+  (void)t; /* t parameter reserved for future use (e.g., time-varying threshold)
+            */
   if (A_raw == NULL) {
     for (int i = 0; i < N; i++)
       out_A[i] = 0.0;
@@ -196,13 +197,12 @@ void calc_G(const double *t, int N, const double *I_E_eff, const double *A,
 void run_cma_model(const double *t, int N, double d, double taup,
                    double taug_val, const double *taug_vec, double B, double Cm,
                    double toff, const double *tM, int n_meals, int *seed,
-                   double eps, const double *A_raw, double k_A,
-                   double A_thresh, double gamma_A, double kappa_A,
-                   double beta_A, double eta_A, double tau_A, double *out_L,
-                   double *out_m, double *out_c, double *out_c_mod,
-                   double *out_A, double *out_a, double *out_I_S,
-                   double *out_I_E, double *out_I_E_eff, double *out_s_A,
-                   double *out_G, double *out_g) {
+                   double eps, const double *A_raw, double k_A, double A_thresh,
+                   double gamma_A, double kappa_A, double beta_A, double eta_A,
+                   double tau_A, double *out_L, double *out_m, double *out_c,
+                   double *out_c_mod, double *out_A, double *out_a,
+                   double *out_I_S, double *out_I_E, double *out_I_E_eff,
+                   double *out_s_A, double *out_G, double *out_g) {
   /* Light */
   calc_L(t, N, d, taup, eps, out_L);
 
@@ -242,10 +242,11 @@ void run_cma_model(const double *t, int N, double d, double taup,
     actual_taug = temp_taug;
   }
 
-  /* Glucose — uses I_E_eff and activity uptake; pass NULL for A when inactive */
+  /* Glucose — uses I_E_eff and activity uptake; pass NULL for A when inactive
+   */
   const double *act = (A_raw != NULL) ? out_A : NULL;
-  calc_G(t, N, out_I_E_eff, act, tM, n_meals, actual_taug, B, Cm, toff,
-         gamma_A, kappa_A, 0, out_G, out_g);
+  calc_G(t, N, out_I_E_eff, act, tM, n_meals, actual_taug, B, Cm, toff, gamma_A,
+         kappa_A, 0, out_G, out_g);
 
   if (temp_taug)
     free(temp_taug);

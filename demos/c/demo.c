@@ -1225,11 +1225,15 @@ int main(int argc, char **argv) {
 
     if (u.panel == 0) {
       struct nk_vec2 sd = ctx.input.mouse.scroll_delta;
-      if (sd.y > 0.0f && u.sel > 0) {
+      if ((sd.y > 0.0f ||
+           nk_input_is_key_pressed(&ctx.input, NK_KEY_UP)) &&
+          u.sel > 0) {
         u.sel--;
         u.redraw = 1;
       }
-      if (sd.y < 0.0f && u.sel < NVAR - 1) {
+      if ((sd.y < 0.0f ||
+           nk_input_is_key_pressed(&ctx.input, NK_KEY_DOWN)) &&
+          u.sel < NVAR - 1) {
         u.sel++;
         u.redraw = 1;
       }
