@@ -13,15 +13,17 @@
 #define FONT_CONTRAST_MIN 90u
 
 /* ITU-R BT.601 relative luma (0..255) of a packed 0xRRGGBB color. */
-static unsigned luma(uint32_t c) {
-    return ((77u * ((c >> 16) & 0xff)) +
-            (150u * ((c >> 8) & 0xff)) +
-            (29u * (c & 0xff))) >> 8;
+static unsigned luma(uint32_t c)
+{
+    return ((77u * ((c >> 16) & 0xff)) + (150u * ((c >> 8) & 0xff)) + (29u * (c & 0xff))) >> 8;
 }
 
-static uint32_t blend(uint32_t d, uint32_t s, unsigned a) {
-    if (a >= 255) return s;
-    if (a == 0) return d;
+static uint32_t blend(uint32_t d, uint32_t s, unsigned a)
+{
+    if (a >= 255)
+        return s;
+    if (a == 0)
+        return d;
     unsigned dr = (d >> 16) & 0xff, dg = (d >> 8) & 0xff, db = d & 0xff;
     unsigned sr = (s >> 16) & 0xff, sg = (s >> 8) & 0xff, sb = s & 0xff;
     unsigned nr = (dr * (255 - a) + sr * a) / 255;
@@ -30,13 +32,13 @@ static uint32_t blend(uint32_t d, uint32_t s, unsigned a) {
     return (nr << 16) | (ng << 8) | nb;
 }
 
-static int in_clip(term *t, int x, int y) {
-    return x >= 0 && y >= 0 && x < t->vw && y < t->vh &&
-           (!t->clip_on || (x >= t->clip_x && y >= t->clip_y &&
-            x < t->clip_x + t->clip_w && y < t->clip_y + t->clip_h));
+static int in_clip(term* t, int x, int y)
+{
+    return x >= 0 && y >= 0 && x < t->vw && y < t->vh && (!t->clip_on || (x >= t->clip_x && y >= t->clip_y && x < t->clip_x + t->clip_w && y < t->clip_y + t->clip_h));
 }
 
-static void put(term *t, int x, int y, uint32_t color, unsigned a) {
+static void put(term* t, int x, int y, uint32_t color, unsigned a)
+{
     if (!in_clip(t, x, y))
         return;
     int col = x;
@@ -50,11 +52,12 @@ static void put(term *t, int x, int y, uint32_t color, unsigned a) {
     t->ch[off] = 0;
 }
 
-static int alloc_screen(term *t, int cols, int rows) {
+static int alloc_screen(term* t, int cols, int rows)
+{
     size_t n = (size_t)cols * (size_t)rows;
-    uint32_t *top = calloc(n, sizeof(uint32_t));
-    uint32_t *bot = calloc(n, sizeof(uint32_t));
-    unsigned char *ch = calloc(n, 1);
+    uint32_t* top = calloc(n, sizeof(uint32_t));
+    uint32_t* bot = calloc(n, sizeof(uint32_t));
+    unsigned char* ch = calloc(n, 1);
 
     if ((n > 0) && (!top || !bot || !ch)) {
         free(top);
@@ -76,7 +79,8 @@ static int alloc_screen(term *t, int cols, int rows) {
     return 1;
 }
 
-static int query_size(int fd, int *cols, int *rows) {
+static int query_size(int fd, int* cols, int* rows)
+{
     struct winsize ws;
     if (ioctl(fd, TIOCGWINSZ, &ws) < 0 || ws.ws_col == 0 || ws.ws_row == 0)
         return 0;
@@ -85,7 +89,8 @@ static int query_size(int fd, int *cols, int *rows) {
     return 1;
 }
 
-void term_open(term *t, int mouse) {
+void term_open(term* t, int mouse)
+{
     memset(t, 0, sizeof(*t));
     t->fd = STDIN_FILENO;
     t->mouse = mouse;
@@ -119,7 +124,8 @@ void term_open(term *t, int mouse) {
 #undef ESTR
 }
 
-void term_close(term *t) {
+void term_close(term* t)
+{
     if (t->mouse)
         write(STDOUT_FILENO, "\033[?1000l\033[?1006l", 16);
     write(STDOUT_FILENO, "\033[0m\033[?25h\033[?1049l", sizeof("\033[0m\033[?25h\033[?1049l") - 1);
@@ -137,7 +143,8 @@ void term_close(term *t) {
     tcsetattr(t->fd, TCSANOW, &t->tio);
 }
 
-int term_resize(term *t) {
+int term_resize(term* t)
+{
     int c, r;
     if (!query_size(t->fd, &c, &r))
         return 0;
@@ -148,12 +155,14 @@ int term_resize(term *t) {
     return 1;
 }
 
-int term_read(term *t, unsigned char *buf, int cap) {
+int term_read(term* t, unsigned char* buf, int cap)
+{
     ssize_t n = read(t->fd, buf, (size_t)cap);
     return (int)n;
 }
 
-void term_set_clip(term *t, int x, int y, int w, int h) {
+void term_set_clip(term* t, int x, int y, int w, int h)
+{
     t->clip_on = 1;
     t->clip_x = x;
     t->clip_y = y;
@@ -161,17 +170,20 @@ void term_set_clip(term *t, int x, int y, int w, int h) {
     t->clip_h = h < 0 ? 0 : h;
 }
 
-void term_clip_off(term *t) {
+void term_clip_off(term* t)
+{
     t->clip_on = 0;
 }
 
-void term_fill(term *t, int x, int y, int w, int h, uint32_t color) {
+void term_fill(term* t, int x, int y, int w, int h, uint32_t color)
+{
     for (int j = y; j < y + h; j++)
         for (int i = x; i < x + w; i++)
             put(t, i, j, color, 255);
 }
 
-static void line_low(term *t, int x0, int y0, int x1, int y1, uint32_t c) {
+static void line_low(term* t, int x0, int y0, int x1, int y1, uint32_t c)
+{
     int dx = x1 - x0, dy = y1 - y0;
     int yi = 1;
     if (dy < 0) {
@@ -190,7 +202,8 @@ static void line_low(term *t, int x0, int y0, int x1, int y1, uint32_t c) {
     }
 }
 
-static void line_high(term *t, int x0, int y0, int x1, int y1, uint32_t c) {
+static void line_high(term* t, int x0, int y0, int x1, int y1, uint32_t c)
+{
     int dx = x1 - x0, dy = y1 - y0;
     int xi = 1;
     if (dx < 0) {
@@ -209,7 +222,8 @@ static void line_high(term *t, int x0, int y0, int x1, int y1, uint32_t c) {
     }
 }
 
-void term_line(term *t, int x0, int y0, int x1, int y1, uint32_t color) {
+void term_line(term* t, int x0, int y0, int x1, int y1, uint32_t color)
+{
     if (abs(y1 - y0) < abs(x1 - x0)) {
         if (x0 > x1)
             line_low(t, x1, y1, x0, y0, color);
@@ -223,7 +237,8 @@ void term_line(term *t, int x0, int y0, int x1, int y1, uint32_t color) {
     }
 }
 
-void term_ellipse(term *t, int cx, int cy, int rx, int ry, uint32_t color, int filled) {
+void term_ellipse(term* t, int cx, int cy, int rx, int ry, uint32_t color, int filled)
+{
     int x0 = cx - rx, x1 = cx + rx, y0 = cy - ry, y1 = cy + ry;
     if (rx <= 0 || ry <= 0) {
         if (rx == 0 && ry == 0)
@@ -246,12 +261,14 @@ void term_ellipse(term *t, int cx, int cy, int rx, int ry, uint32_t color, int f
     }
 }
 
-static int sign3(int x0, int y0, int x1, int y1, int x2, int y2) {
+static int sign3(int x0, int y0, int x1, int y1, int x2, int y2)
+{
     return (x1 - x0) * (y2 - y0) - (x2 - x0) * (y1 - y0);
 }
 
-void term_triangle(term *t, int x0, int y0, int x1, int y1, int x2, int y2,
-                   uint32_t color, int filled) {
+void term_triangle(term* t, int x0, int y0, int x1, int y1, int x2, int y2,
+    uint32_t color, int filled)
+{
     if (filled) {
         int minx = x0 < x1 ? x0 : x1;
         minx = minx < x2 ? minx : x2;
@@ -280,23 +297,29 @@ void term_triangle(term *t, int x0, int y0, int x1, int y1, int x2, int y2,
     }
 }
 
-void term_polyline(term *t, const int *pts, int n, uint32_t color) {
+void term_polyline(term* t, const int* pts, int n, uint32_t color)
+{
     if (n < 2)
         return;
     for (int i = 0; i < n - 1; i++)
         term_line(t, pts[2 * i], pts[2 * i + 1], pts[2 * i + 2], pts[2 * i + 3], color);
 }
 
-void term_polygon(term *t, const int *pts, int n, uint32_t color) {
+void term_polygon(term* t, const int* pts, int n, uint32_t color)
+{
     if (n < 3)
         return;
     int minx = pts[0], maxx = pts[0], miny = pts[1], maxy = pts[1];
     for (int i = 1; i < n; i++) {
         int x = pts[2 * i], y = pts[2 * i + 1];
-        if (x < minx) minx = x;
-        if (x > maxx) maxx = x;
-        if (y < miny) miny = y;
-        if (y > maxy) maxy = y;
+        if (x < minx)
+            minx = x;
+        if (x > maxx)
+            maxx = x;
+        if (y < miny)
+            miny = y;
+        if (y > maxy)
+            maxy = y;
     }
     for (int y = miny; y <= maxy; y++) {
         for (int x = minx; x <= maxx; x++) {
@@ -313,8 +336,9 @@ void term_polygon(term *t, const int *pts, int n, uint32_t color) {
     }
 }
 
-void term_rect_multi(term *t, int x, int y, int w, int h,
-                     uint32_t left, uint32_t top, uint32_t right, uint32_t bottom) {
+void term_rect_multi(term* t, int x, int y, int w, int h,
+    uint32_t left, uint32_t top, uint32_t right, uint32_t bottom)
+{
     (void)top;
     (void)bottom;
     int span = w > 1 ? w - 1 : 1;
@@ -327,7 +351,8 @@ void term_rect_multi(term *t, int x, int y, int w, int h,
     }
 }
 
-void term_glyph(term *t, int x, int y, unsigned char c, uint32_t fg) {
+void term_glyph(term* t, int x, int y, unsigned char c, uint32_t fg)
+{
     if (!in_clip(t, x, y))
         return;
     int row = y >> 1;
@@ -347,40 +372,40 @@ void term_glyph(term *t, int x, int y, unsigned char c, uint32_t fg) {
     t->top[off] = fg;
 }
 
-void term_flush(term *t) {
+void term_flush(term* t)
+{
     if (!t->top || !t->bot || !t->ch || t->cols <= 0 || t->rows <= 0)
         return;
 
     size_t cap = (size_t)t->cols * (size_t)t->rows * 32 + 256;
     if (cap > t->outcap) {
-        char *out = realloc(t->out, cap);
+        char* out = realloc(t->out, cap);
         if (!out)
             return;
         t->out = out;
         t->outcap = cap;
     }
-    char *o = t->out;
+    char* o = t->out;
     size_t used = 0;
-#define EMIT(...) do { \
-        if (used < cap) { \
+#define EMIT(...)                                                \
+    do {                                                         \
+        if (used < cap) {                                        \
             int n = snprintf(o + used, cap - used, __VA_ARGS__); \
-            if (n < 0) { \
-                used = cap; \
-            } else if ((size_t)n >= cap - used) { \
-                used = cap; \
-            } else { \
-                used += (size_t)n; \
-            } \
-        } \
+            if (n < 0) {                                         \
+                used = cap;                                      \
+            } else if ((size_t)n >= cap - used) {                \
+                used = cap;                                      \
+            } else {                                             \
+                used += (size_t)n;                               \
+            }                                                    \
+        }                                                        \
     } while (0)
     EMIT("\033[H");
     size_t soft_limit = cap > 512 ? cap - 512 : 0;
     for (int r = 0; r < t->rows && used < soft_limit; r++) {
         size_t base = (size_t)r * (size_t)t->cols;
         int last = t->cols - 1;
-        while (last >= 0 && (t->ch[base + last] == 0) &&
-               t->top[base + last] == t->bot[base + last] &&
-               t->bot[base + last] == 0)
+        while (last >= 0 && (t->ch[base + last] == 0) && t->top[base + last] == t->bot[base + last] && t->bot[base + last] == 0)
             last--;
         if (last < 0) {
             EMIT("\033[0m\033[K\r\n");
@@ -411,8 +436,8 @@ void term_flush(term *t) {
             }
             if (ng != ch || nf != fg || nb != bg) {
                 EMIT("\033[38;2;%u;%u;%um\033[48;2;%u;%u;%um",
-                     (nf >> 16) & 0xff, (nf >> 8) & 0xff, nf & 0xff,
-                     (nb >> 16) & 0xff, (nb >> 8) & 0xff, nb & 0xff);
+                    (nf >> 16) & 0xff, (nf >> 8) & 0xff, nf & 0xff,
+                    (nb >> 16) & 0xff, (nb >> 8) & 0xff, nb & 0xff);
                 fg = nf;
                 bg = nb;
                 ch = ng;
