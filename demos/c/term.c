@@ -10,6 +10,14 @@
 #include <sys/ioctl.h>
 
 #define CELL_HALF 0x2580u
+#define FONT_CONTRAST_MIN 90u
+
+/* ITU-R BT.601 relative luma (0..255) of a packed 0xRRGGBB color. */
+static unsigned luma(uint32_t c) {
+    return ((77u * ((c >> 16) & 0xff)) +
+            (150u * ((c >> 8) & 0xff)) +
+            (29u * (c & 0xff))) >> 8;
+}
 
 static uint32_t blend(uint32_t d, uint32_t s, unsigned a) {
     if (a >= 255) return s;
@@ -326,6 +334,15 @@ void term_glyph(term *t, int x, int y, unsigned char c, uint32_t fg) {
     size_t off = (size_t)row * (size_t)t->cols + (size_t)x;
     if (c == ' ' || c == 0 || c == '\n' || c == '\r')
         return;
+    /* Glyph cells render as fg = top over bg = bot in term_flush, so force
+       the font color to contrast with this cell's background: legibility is
+       paramount. */
+    uint32_t bg = t->bot[off];
+    unsigned bg_luma = luma(bg);
+    unsigned fg_luma = luma(fg);
+    unsigned delta = fg_luma > bg_luma ? fg_luma - bg_luma : bg_luma - fg_luma;
+    if (delta < FONT_CONTRAST_MIN)
+        fg = bg_luma >= 128u ? 0x000000u : 0xffffffu;
     t->ch[off] = c;
     t->top[off] = fg;
 }
