@@ -44,11 +44,11 @@ This document consolidates the implementation roadmap and the approved TclUI fro
 The CMA model captures circadian and meal-driven glucose dynamics but lacks **physical activity**. Skeletal muscle contractions during activity drive insulin-independent glucose uptake (via GLUT4 translocation), elevate cortisol, and increase post-exercise insulin sensitivity.
 
 The model operates in **nondimensional model units** (baseline ranges):
-- Cortisol $`c \in [0.023, 1.234]`$ (circadian rhythm)
-- Extracellular Insulin $`I_E \in [0.006, 0.564]`$
-- Plasma Glucose $`G \in [0.100, 2.989]`$
+- Cortisol $c \in [0.023, 1.234]$ (circadian rhythm)
+- Extracellular Insulin $I_E \in [0.006, 0.564]$
+- Plasma Glucose $G \in [0.100, 2.989]$
 
-Parameter values ($`\gamma_A = 0.15, \beta_A = 0.20`$, etc.) are unitless and evaluated relative to these scales.
+Parameter values ($\gamma_A = 0.15, \beta_A = 0.20$, etc.) are unitless and evaluated relative to these scales.
 
 ---
 
@@ -58,10 +58,8 @@ Parameter values ($`\gamma_A = 0.15, \beta_A = 0.20`$, etc.) are unitless and ev
 
 - **Raw input:** $A_{\text{raw}}(t) = \text{HR}(t) \times \text{SV}_{\text{est}}(t)$
 - **Pre-normalization (Review Fix #3):** The raw formula produces values 65–260. The sigmoid expects pre-normalized input $A_{\text{raw\_norm}} \in [0, 1]$:
-  ```math
-  A_{\text{raw\_norm}} = \frac{\text{HR} \times \text{SV}_{\text{est}} - \text{CO}_{\text{rest}}}{\text{CO}_{\text{max}} - \text{CO}_{\text{rest}}}
- ```
-  yielding $\A_{\text{raw\_norm}} \approx 0$ at rest and $\approx 1$ at maximal exercise.
+  $A_{\text{raw\_norm}} = \frac{\text{HR} \times \text{SV}_{\text{est}} - \text{CO}_{\text{rest}}}{\text{CO}_{\text{max}} - \text{CO}_{\text{rest}}}$
+  yielding $A_{\text{raw\_norm}} \approx 0$ at rest and $\approx 1$ at maximal exercise.$
 - **Normalized activity signal (sigmoid):**
   $$A(t) = \frac{1}{1 + \exp(-2 k_A (A_{\text{raw\_norm}}(t) - A_{\text{thresh}}))}$$
   Defaults: $k_A = 5.0$ (gain), $A_{\text{thresh}} = 0.3$ (activation threshold), $A(t) \in (0, 1)$.
