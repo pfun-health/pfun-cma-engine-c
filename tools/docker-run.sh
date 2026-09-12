@@ -1,7 +1,9 @@
-#!/usr/bin/env sh
+#!/usr/bin/env bash
 
 # docker-run.sh
 # Runtime script for the demo
 
 docker compose run --rm \
-       shell
+	-ti \
+	build \
+	/usr/bin/env /bin/sh -c './entry.sh shell'

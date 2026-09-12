@@ -15,7 +15,13 @@ if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
 from pfun_cma_engine import pfun_cma_engine
-from scenarios import BASELINE_SCENARIO, SCENARIOS, ScenarioDefinition, build_activity_signal, scenario_kwargs
+from scenarios import (
+    BASELINE_SCENARIO,
+    SCENARIOS,
+    ScenarioDefinition,
+    build_activity_signal,
+    scenario_kwargs,
+)
 
 pce = pfun_cma_engine
 
@@ -25,7 +31,9 @@ def print_docstring() -> None:
     print(pce.run_cma_engine_c.__doc__)
 
 
-def compute_as_dataframe(defn: ScenarioDefinition, t: np.ndarray) -> tuple[pd.DataFrame, np.ndarray, dict[str, object]]:
+def compute_as_dataframe(
+    defn: ScenarioDefinition, t: np.ndarray
+) -> tuple[pd.DataFrame, np.ndarray, dict[str, object]]:
     kwargs = scenario_kwargs(defn, t)
     soln = pce.run_cma_engine_c(**kwargs)
     g = soln.pop("g")
@@ -34,14 +42,18 @@ def compute_as_dataframe(defn: ScenarioDefinition, t: np.ndarray) -> tuple[pd.Da
     return df, g, kwargs
 
 
-def describe_scenario(defn: ScenarioDefinition, t: np.ndarray, kwargs: dict[str, object]) -> None:
+def describe_scenario(
+    defn: ScenarioDefinition, t: np.ndarray, kwargs: dict[str, object]
+) -> None:
     print(f"# {defn.title}\n")
     print(defn.summary)
     print()
     print("## Scenario inputs\n")
     print(f"- meals (h): {list(defn.tM)}")
     print(f"- meal widths taug (h): {list(defn.taug_vec)}")
-    print(f"- activity pulses (center, width, amplitude): {list(defn.pulses) if defn.pulses else 'none'}")
+    print(
+        f"- activity pulses (center, width, amplitude): {list(defn.pulses) if defn.pulses else 'none'}"
+    )
     if kwargs["A_raw"] is None:
         print("- activity enabled: no")
     else:
@@ -74,7 +86,9 @@ def print_dataframe(df: pd.DataFrame) -> None:
     print(df.to_markdown())
 
 
-def plot_timeseries_ascii(df: pd.DataFrame, g: np.ndarray, width: int = 60, height: int = 12) -> None:
+def plot_timeseries_ascii(
+    df: pd.DataFrame, g: np.ndarray, width: int = 60, height: int = 12
+) -> None:
     t = df.index.to_numpy(dtype=float)
 
     def render(series: np.ndarray, title: str, W: int, H: int) -> str:
@@ -118,7 +132,9 @@ def plot_timeseries_ascii(df: pd.DataFrame, g: np.ndarray, width: int = 60, heig
             col = int(round((tv - tmin) / tspan * (W - 1)))
             row = int(round((1.0 - (vv - gmin) / gspan) * (H - 1)))
             grid[row][col] = marker
-    lines.append(f"g vs t  (per-meal rows; t: {tmin:g} .. {tmax:g}, value: {gmin:g} .. {gmax:g})")
+    lines.append(
+        f"g vs t  (per-meal rows; t: {tmin:g} .. {tmax:g}, value: {gmin:g} .. {gmax:g})"
+    )
     for row in range(H):
         val = gmax - row / (H - 1) * gspan
         lines.append(f"{val:8.3g} |{''.join(grid[row])}|")
@@ -131,9 +147,15 @@ def plot_timeseries_ascii(df: pd.DataFrame, g: np.ndarray, width: int = 60, heig
 
 
 def main(argv: list[str] | None = None) -> None:
-    parser = argparse.ArgumentParser(description="PFun CMA scenario demo (timeseries ASCII plots)")
-    parser.add_argument("--scenario", choices=sorted(SCENARIOS), default=BASELINE_SCENARIO.slug)
-    parser.add_argument("--pts", type=int, default=97, help="number of points in the 24 h trace")
+    parser = argparse.ArgumentParser(
+        description="PFun CMA scenario demo (timeseries ASCII plots)"
+    )
+    parser.add_argument(
+        "--scenario", choices=sorted(SCENARIOS), default=BASELINE_SCENARIO.slug
+    )
+    parser.add_argument(
+        "--pts", type=int, default=97, help="number of points in the 24 h trace"
+    )
     parser.add_argument("--save", metavar="FILE", default=None)
     parser.add_argument("--skip-docstring", action="store_true")
     args = parser.parse_args(argv)
