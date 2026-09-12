@@ -2,7 +2,7 @@
 
 **Date:** 2026-09-06  
 **Status:** Core complete, TclUI approved  
-**Scope:** Activity Function Extension (complete) + LLVM IR Pipeline (Tier 1) + Review Fixes (complete) + TclUI Frontend (new)  
+**Scope:** Activity Function Extension (complete) + LLVM IR Pipeline (Tier 1) + Review Fixes (complete) + Scenario Database Buffer (complete) + TclUI Frontend (new)  
 **Target Release:** Q3 2026 (Core / LLVM Tier 1) · Q4 2026 (TclUI Frontend)
 
 ---
@@ -14,6 +14,7 @@ This document consolidates the implementation roadmap and the approved TclUI fro
 2. **Review Findings & Required Fixes** — Three mathematical review issues (**COMPLETE**).
 3. **LLVM IR Pipeline** — Compiler optimization and cross-platform support (**Tier 1 COMPLETE**; Tiers 2–3 deferred to Q4).
 4. **TclUI Frontend** — Toolkit-agnostic UI spec + Tcl/Tk reference backend (**APPROVED**; canonical PRD in `TCLUI_PRD.md`, summary in §8).
+5. **Scenario Database Buffer** — Evidence-backed descriptor-to-parameter mapping with curated references, precomputed into a DuckDB buffer (**COMPLETE**; `docs/SCENARIO_DB.md`).
 
 ### Current Implementation Status
 
@@ -26,6 +27,7 @@ This document consolidates the implementation roadmap and the approved TclUI fro
 | **LLVM IR generation** | COMPLETE | 100% | `convert-to-llvm.py` → `build/pfun_cma_engine.{ll,bc,o}` |
 | **LLVM testing infrastructure** | PARTIAL | Tier 1 | `make test-llvm`, `check-ir`, `ir-metrics`; Tiers 2–3 deferred to Q4 |
 | **TclUI frontend** | PLANNED | 0% | Execute §8 phases; spec frozen in `TCLUI_PRD.md` |
+| **Scenario database buffer** (`demos/python/scenariogen`) | COMPLETE | 100% | 768-scenario DuckDB buffer + refs registry; `docs/SCENARIO_DB.md` |
 
 ### High-Priority Action Items (This Sprint)
 
@@ -205,6 +207,7 @@ Phases 1–5 of core development are complete and verified:
 - [x] **Documentation Gate:** Review fixes #1–#3 reflected in specifications; limitations documented.
 - [x] **Validation Test Gate:** Monotonicity, saturation, decay, and boundary tests pass in `tests/test_activity.py`.
 - [x] **LLVM Tier 1 Gate:** `make test-llvm` and `make check-ir` pass with zero regressions.
+- [x] **Scenario DB Gate:** full tier builds 768 deterministic scenarios × 193 pts; `tests/test_scenariogen.py` + `tests/test_scenario_db.py` green; physiological directions verified.
 - [ ] **TclUI Bridge Gate:** `pfun_cma_tclui.c` outputs match Python wrapper within $10^{-12}$ rel-tol.
 - [ ] **TclUI Logic Gate:** `ui_core.tcl` passes headless unit tests (ops $\to$ state $\to$ frame) with no display.
 - [ ] **TclUI Parity Gate:** Tk backend satisfies all operations in PRD §6; `--ascii --save` matches `DEMO_C_OUTPUT.md`.
@@ -299,6 +302,7 @@ All edits set `dirty`; with `auto_run=1`, the engine recomputes before next fram
 ### Document History
 | Version | Date | Changes |
 |---------|------|---------|
+| 1.3 | 2026-09-11 | Scenario database buffer complete (descriptor registry, DuckDB buffer, tests); design in `docs/SCENARIO_DB.md`. |
 | 1.2 | 2026-09-09 | Condensed roadmap to $\le 500$ lines; streamlined completed phases; unified phase gates. |
 | 1.1 | 2026-09-06 | Added §8 TclUI Frontend spec summary; updated core tracks to COMPLETE. |
 | 1.0 | 2026-07-08 | Initial unified collation of extension proposals. |

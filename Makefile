@@ -116,6 +116,27 @@ $(NUKLEAR_HEADER):
 	curl -fsSL -o $@ \
 	  https://raw.githubusercontent.com/Immediate-Mode-UI/Nuklear/$(NUKLEAR_VERSION)/nuklear.h
 
+# ── Scenario database buffer ─────────────────────────────────────────────────
+
+SCENARIO_DB := data/scenario_buffer.duckdb
+
+.PHONY: scenario-db scenario-db-core query-demo test-scenariogen
+scenario-db-core:
+	$(PYTHON) $(DEMO_PY_DIR)/build_scenario_db.py --db /tmp/scenario_core.duckdb --tier core
+	@echo "Core buffer written to /tmp/scenario_core.duckdb (15 scenarios x 97 pts)"
+
+scenario-db:
+	@mkdir -p data
+	$(PYTHON) $(DEMO_PY_DIR)/build_scenario_db.py --db $(SCENARIO_DB) --tier full --pts 193
+
+query-demo: scenario-db
+	$(PYTHON) $(DEMO_PY_DIR)/query_scenario_db.py --db $(SCENARIO_DB) \
+	  --mood stressed --hunger starving --sleep restful --activity sedentary \
+	  --meal-schedule standard --summary-only --timecourse --references
+
+test-scenariogen:
+	$(PYTHON) -m pytest tests/test_scenariogen.py tests/test_scenario_db.py -q
+
 # Help
 .PHONY: help
 help:
@@ -130,6 +151,10 @@ help:
 	@echo "  demo-morning-run - Save morning run scenario output"
 	@echo "  demo-evening-party - Save evening meal + party scenario output"
 	@echo "  outputs   - Generate all tracked demo output files"
+	@echo "  scenario-db-core - Build small core buffer (15 x 97 pts) to /tmp"
+	@echo "  scenario-db      - Build full 768-scenario buffer (data/scenario_buffer.duckdb)"
+	@echo "  query-demo       - Query the full buffer (stress x starving combo, summary + timecourse)"
+	@echo "  test-scenariogen - Run scenariogen + scenario-db pytest suites"
 	@echo "  clean     - Remove build artifacts"
 	@echo "  rebuild   - Clean and rebuild"
 	@echo "  debug     - Build with debug symbols"
@@ -252,6 +277,6 @@ ir-metrics: $(LLVM_IR)
 .PHONY: analyze-all
 analyze-all: analyze-ir optimize-ir profile-ir ir-metrics llvm-targets
 
-# Update the test target to run LLVM tests too
+# Update the test target to run LLVM tests and the scenariogen suites too
 .PHONY: test
-test: test-llvm check-ir
+test: test-llvm check-ir test-scenariogen

@@ -6,6 +6,7 @@
 - **CMake** >= 3.14 (optional, alternative build)
 - **Python** >= 3.11 (for Python package and Python demos)
 - **uv** or pip (for Python package)
+- **DuckDB** >= 1.5 Python package (scenario buffer; installed via `uv sync --dev`)
 
 ### Install uv
 
@@ -94,10 +95,28 @@ make demo-evening-party
 
 Outputs are saved under `docs/demo_outputs/`.
 
+### Scenario database buffer
+
+```sh
+# full buffer (768 scenarios x 193 points) -> data/scenario_buffer.duckdb
+.venv/bin/python demos/python/build_scenario_db.py --db data/scenario_buffer.duckdb
+
+# small core buffer (15 scenarios x 97 points) for fast tests/CI
+.venv/bin/python demos/python/build_scenario_db.py --db /tmp/scenario_core.duckdb --tier core
+
+# query a scenario: exact + nearest match, summary, timecourse, references
+.venv/bin/python demos/python/query_scenario_db.py --db data/scenario_buffer.duckdb \
+  --mood stressed --hunger starving --sleep restful --activity sedentary --meal-schedule standard \
+  --summary-only --timecourse --references
+```
+
+Design, schema, tiers, and physiology: [`docs/SCENARIO_DB.md`](SCENARIO_DB.md).
+
 ## Validation
 
 ```sh
-uv run pytest tests/test_activity.py tests/test_demo_scenarios.py
+uv run pytest tests/test_activity.py tests/test_demo_scenarios.py \
+  tests/test_scenariogen.py tests/test_scenario_db.py
 make test
 ```
 
