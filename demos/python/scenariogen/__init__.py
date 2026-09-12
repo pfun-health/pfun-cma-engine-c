@@ -11,7 +11,7 @@ Submodules
 
 from __future__ import annotations
 
-__version__ = "0.1.0"
+__version__ = "0.1.1"
 
 from scenariogen import descriptors, mapping, references  # noqa: E402,F401
 from scenariogen import db  # noqa: E402,F401

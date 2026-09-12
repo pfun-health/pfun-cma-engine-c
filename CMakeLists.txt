@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.14)
-project(pfun-cma-engine-c VERSION 0.1.0 LANGUAGES C)
+project(pfun-cma-engine-c VERSION 0.1.1 LANGUAGES C)
 
 # # # #
 # # LLVM configuration
