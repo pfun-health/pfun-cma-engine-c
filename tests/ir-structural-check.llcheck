@@ -57,7 +57,9 @@
 ; CHECK: declare {{.*}} ptr @malloc
 ; CHECK: declare void @free
 ; CHECK: declare <2 x double> @llvm.fmuladd.v2f64
-; CHECK: declare void @llvm.assume
+; Note: clang >= 22 no longer emits @llvm.assume for this source (the C
+; engine contains no __builtin_assume), so it is intentionally not checked
+; here; older clangs may still emit it.
 ; CHECK: clang version
 ; CHECK: llvm.loop.isvectorized
 
