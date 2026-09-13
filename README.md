@@ -23,9 +23,12 @@ See [`docs/BUILD.md`](docs/BUILD.md) for build instructions.
 ## Validation
 
 ```sh
-uv run pytest tests/test_activity.py tests/test_demo_scenarios.py \
-  tests/test_scenariogen.py tests/test_scenario_db.py
-make test
+$ uv run pytest \
+    tests/test_activity.py \
+    tests/test_demo_scenarios.py \
+    tests/test_scenariogen.py \
+    tests/test_scenario_db.py
+$ make test
 ```
 
 - Python behavior/regression coverage lives in `tests/test_activity.py`, `tests/test_demo_scenarios.py`, `tests/test_scenariogen.py`, and `tests/test_scenario_db.py`.
@@ -34,28 +37,47 @@ make test
 ### Python scenario demos
 
 ```sh
-uv run python demos/python/demo.py
-uv run python demos/python/demo.py --scenario morning-run
-uv run python demos/python/demo.py --scenario evening-party
+# Run the baseline demo
+$ uv run python demos/python/demo.py
+# 'morning-run' scenario
+$ uv run python demos/python/demo.py \
+    --scenario morning-run
+# 'evening-party'
+$ uv run python demos/python/demo.py \
+    --scenario evening-party
 ```
 
 ### Interactive C demo
 
 ```sh
-make demo
-./build/demo
+# Compile the C demo
+$ make demo
+
+# Run the demo binary
+$ ./build/demo
 ```
 
-### Scenario database buffer
+### PFun evidentiary scenario database
 
-Precomputed DuckDB buffer of evidence-backed physiological scenarios
-(descriptor → engine-parameter mapping with curated citations). Build and query:
+Precomputed database (`DuckDB`) comprising quantitative definitions of evidence-backed physiological scenarios; essentially mapping, `descriptor` → `engine-parameter` → `curated citations`.
+
+Build and query:
 
 ```sh
-.venv/bin/python demos/python/build_scenario_db.py --db data/scenario_buffer.duckdb
-.venv/bin/python demos/python/query_scenario_db.py --db data/scenario_buffer.duckdb \
-  --mood stressed --hunger starving --sleep restful --activity sedentary --meal-schedule standard \
-  --summary-only --timecourse --references
+# Build (precompute) the scenario database
+$ uv run python demos/python/build_scenario_db.py \
+    --db data/scenario_buffer.duckdb
+
+# Query the database, return a specific scenario
+$ uv run python demos/python/query_scenario_db.py \
+    --db data/scenario_buffer.duckdb \
+    --mood stressed --hunger starving \
+    --sleep restful \
+    --activity sedentary \
+    --meal-schedule standard \
+    --summary-only \
+    --timecourse \
+    --references
 ```
 
 See [`docs/SCENARIO_DB.md`](docs/SCENARIO_DB.md) for the design, schema, tiers, and tests.
