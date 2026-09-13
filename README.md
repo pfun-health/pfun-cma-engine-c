@@ -1,9 +1,11 @@
 # pfun-health/pfun-cma-engine-c
 
-_Numerical engine for the PFun CMA Model, implemented in `C` for portability._
+_Numerical engine for the [PFun CMA Model](https://github.com/pfun-health/pfun-cma-model), implemented in `C` for portability._
 
 > [!NOTE]
 > "CMA" is a fundamental initialism, short for "Cortisol-Melatonin-Adiponectin."
+
+---
 
 ## Repository layout
 
