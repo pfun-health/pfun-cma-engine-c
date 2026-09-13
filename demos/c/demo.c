@@ -2,7 +2,7 @@
  * @file demo.c
  * @brief Interactive TTY demonstration and ASCII export for PFun CMA engine.
  *
- * Demonstrates the Circadian-Meal-Activity (CMA) physiological model using
+ * Demonstrates the Cortisol-Melatonin-Adiponectin (CMA) physiological model using
  * either an interactive terminal UI built with Nuklear and half-block graphics
  * (term.h/term.c), or headless ASCII chart export to standard output and
  * Markdown files (--ascii, --save). Provides real-time parameter tuning for
