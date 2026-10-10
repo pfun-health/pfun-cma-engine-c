@@ -38,112 +38,12 @@ STATIC_TARGET := $(LIB_DIR)/libpfun_cma_engine.a
 HEADERS := $(wildcard $(SRC_DIR)/*.h)
 
 # Default target
-.PHONY: all
-all: $(TARGET) $(STATIC_TARGET)
-
-# Create directories
-.PHONY: directories
-directories:
-	@mkdir -p $(BUILD_DIR)
-	@mkdir -p $(LIB_DIR)
-
-# Shared library
-$(TARGET): directories $(OBJECTS)
-	$(CC) -shared -o $@ $(OBJECTS) $(LDFLAGS)
-
-# Static library
-$(STATIC_TARGET): directories $(OBJECTS)
-	ar rcs $@ $(OBJECTS)
-
-# Compile source files
-$(BUILD_DIR)/%.o: $(SRC_DIR)/%.c $(HEADERS)
-	$(CC) $(CFLAGS) -fPIC -I$(SRC_DIR) -c $< -o $@
-
-# Clean build artifacts
-.PHONY: clean
-clean:
-	rm -rf $(BUILD_DIR) $(LIB_DIR)/*.so $(LIB_DIR)/*.a $(LIB_DIR)/*.o
-
-# Rebuild from scratch
-.PHONY: rebuild
-rebuild: clean all
-
-# Debug build
-.PHONY: debug
-debug: CFLAGS := -Wall -Wextra -g -O0 -DDEBUG
-debug: clean all
-
-# Format code
-.PHONY: format
-format:
-	@echo "Formatting code with clang-format..."
-	clang-format -i $(SRC_DIR)/*.c $(SRC_DIR)/*.h 2>/dev/null || echo "clang-format not available"
-
-# Check code style
-.PHONY: check-format
-check-format:
-	clang-format --dry-run -Werror $(SRC_DIR)/*.c $(SRC_DIR)/*.h 2>/dev/null || echo "clang-format not available"
-
-# Capture demo session output to markdown
-.PHONY: demo-py-output demo-c-output demo-morning-run demo-evening-party outputs
-outputs: demo-py-output demo-c-output demo-morning-run demo-evening-party
-
-demo-py-output:
-	$(PYTHON) $(DEMO_PY_DIR)/demo.py --save $(DEMO_OUTPUT_DIR)/DEMO_PY_OUTPUT.md
-
-demo-c-output: demo
-	$(BUILD_DIR)/demo --ascii --save $(DEMO_OUTPUT_DIR)/DEMO_C_OUTPUT.md
-
-demo-morning-run:
-	$(PYTHON) $(DEMO_PY_DIR)/demo.py --scenario morning-run --save $(DEMO_OUTPUT_DIR)/DEMO_MORNING_RUN_OUTPUT.md
-
-demo-evening-party:
-	$(PYTHON) $(DEMO_PY_DIR)/demo.py --scenario evening-party --save $(DEMO_OUTPUT_DIR)/DEMO_EVENING_PARTY_OUTPUT.md
-
-# Interactive/ASCII demo (Nuklear TTY UI + terminal backend)
-.PHONY: demo
-demo: $(BUILD_DIR)/demo
-
-$(BUILD_DIR)/demo: $(DEMO_C_DIR)/demo.c $(DEMO_C_DIR)/term.c $(DEMO_C_DIR)/term.h $(SRC_DIR)/pfun_cma_engine.h $(NUKLEAR_HEADER) | directories
-	$(CC) $(CFLAGS) -D_DEFAULT_SOURCE -Wno-unused-function -Wno-unused-parameter \
-	  -I$(SRC_DIR) -I$(DEMO_C_DIR) -I$(NUKLEAR_DIR) -o $@ $(DEMO_C_DIR)/demo.c $(DEMO_C_DIR)/term.c $(SRC_DIR)/pfun_cma_engine.c $(LDFLAGS)
-
-# Fetch the pinned nuklear.h single-header (idempotent)
-.PHONY: vendor-nuklear
-vendor-nuklear: $(NUKLEAR_HEADER)
-$(NUKLEAR_HEADER):
-	@mkdir -p $(NUKLEAR_DIR)
-	curl -fsSL -o $@ \
-	  https://raw.githubusercontent.com/Immediate-Mode-UI/Nuklear/$(NUKLEAR_VERSION)/nuklear.h
-
-# ── Scenario database buffer ─────────────────────────────────────────────────
-
-SCENARIO_DB := data/scenario_buffer.duckdb
-
-.PHONY: scenario-db scenario-db-core query-demo test-scenariogen
-scenario-db-core:
-	$(PYTHON) $(DEMO_PY_DIR)/build_scenario_db.py --db /tmp/scenario_core.duckdb --tier core
-	@echo "Core buffer written to /tmp/scenario_core.duckdb (15 scenarios x 97 pts)"
-
-scenario-db:
-	@mkdir -p data
-	$(PYTHON) $(DEMO_PY_DIR)/build_scenario_db.py --db $(SCENARIO_DB) --tier full --pts 193
-
-query-demo: scenario-db
-	$(PYTHON) $(DEMO_PY_DIR)/query_scenario_db.py --db $(SCENARIO_DB) \
-	  --mood stressed --hunger starving --sleep restful --activity sedentary \
-	  --meal-schedule standard --summary-only --timecourse --references
-
-test-scenariogen:
-	$(PYTHON) -m pytest tests/test_scenariogen.py tests/test_scenario_db.py -q
-
-# Help
-.PHONY: help
+.PHONY: help all
 help:
 	@echo "pfun-cma-engine-c Makefile"
 	@echo "=========================="
 	@echo "Available targets:"
-	@echo "  all       - Build shared and static libraries (default)"
+	@echo "  all       - Build shared and static libraries"
 	@echo "  demo      - Build interactive TTY demo (Nuklear UI)"
 	@echo "  vendor-nuklear - Fetch pinned nuklear.h into third_party/nuklear"
 	@echo "  demo-py-output - Save baseline Python demo output"
@@ -171,6 +71,8 @@ help:
 	@echo "  profile-ir  - Deep IR static profile (FLOPs, mem, vectorization)"
 	@echo "  analyze-all - Run all LLVM analysis targets"
 	@echo "  help      - Show this help message"
+
+all: $(TARGET) $(STATIC_TARGET)
 
 # ── LLVM IR Tooling ──────────────────────────────────────────────────────────
 
