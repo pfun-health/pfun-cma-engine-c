@@ -38,12 +38,17 @@ STATIC_TARGET := $(LIB_DIR)/libpfun_cma_engine.a
 HEADERS := $(wildcard $(SRC_DIR)/*.h)
 
 # Default target
-.PHONY: all
-all: $(TARGET) $(STATIC_TARGET)
+.DEFAULT_GOAL := help
 
-# Create directories
+.PHONY: help
+help: ## Display this help screen
+	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | sort | awk 'BEGIN {FS = ":.*?## "}; {printf "\033[36m%-15s\033[0m %s\n", $$1, $$2}'
+
+.PHONY: all
+all: $(TARGET) $(STATIC_TARGET)  ## Build shared libary targets (compiled to: build/*.o)
+
 .PHONY: directories
-directories:
+directories:  # Create directories
 	@mkdir -p $(BUILD_DIR)
 	@mkdir -p $(LIB_DIR)
 
@@ -88,16 +93,16 @@ check-format:
 .PHONY: demo-py-output demo-c-output demo-morning-run demo-evening-party outputs
 outputs: demo-py-output demo-c-output demo-morning-run demo-evening-party
 
-demo-py-output:
+demo-py-output:  ## Run the Python-based demo (default settings)
 	$(PYTHON) $(DEMO_PY_DIR)/demo.py --save $(DEMO_OUTPUT_DIR)/DEMO_PY_OUTPUT.md
 
-demo-c-output: demo
+demo-c-output: demo  ## Run the C-based demo (default settings)
 	$(BUILD_DIR)/demo --ascii --save $(DEMO_OUTPUT_DIR)/DEMO_C_OUTPUT.md
 
-demo-morning-run:
+demo-morning-run:  ## Generate a demo scenario to simulate a "morning run" (utilizes metabolic activity parameters)
 	$(PYTHON) $(DEMO_PY_DIR)/demo.py --scenario morning-run --save $(DEMO_OUTPUT_DIR)/DEMO_MORNING_RUN_OUTPUT.md
 
-demo-evening-party:
+demo-evening-party:  ## Generate an "evening party" scenario.
 	$(PYTHON) $(DEMO_PY_DIR)/demo.py --scenario evening-party --save $(DEMO_OUTPUT_DIR)/DEMO_EVENING_PARTY_OUTPUT.md
 
 # Interactive/ASCII demo (Nuklear TTY UI + terminal backend)
@@ -125,52 +130,17 @@ scenario-db-core:
 	$(PYTHON) $(DEMO_PY_DIR)/build_scenario_db.py --db /tmp/scenario_core.duckdb --tier core
 	@echo "Core buffer written to /tmp/scenario_core.duckdb (15 scenarios x 97 pts)"
 
-scenario-db:
+scenario-db:  ## Build the scenario database (precompute labeled scenarios using the compiled pfun-cma-engine libs)
 	@mkdir -p data
 	$(PYTHON) $(DEMO_PY_DIR)/build_scenario_db.py --db $(SCENARIO_DB) --tier full --pts 193
 
-query-demo: scenario-db
+query-demo: scenario-db  ## Query the default demo from the scenario database (and build the database if not already built)
 	$(PYTHON) $(DEMO_PY_DIR)/query_scenario_db.py --db $(SCENARIO_DB) \
 	  --mood stressed --hunger starving --sleep restful --activity sedentary \
 	  --meal-schedule standard --summary-only --timecourse --references
 
 test-scenariogen:
 	$(PYTHON) -m pytest tests/test_scenariogen.py tests/test_scenario_db.py -q
-
-# Help
-.PHONY: help
-help:
-	@echo "pfun-cma-engine-c Makefile"
-	@echo "=========================="
-	@echo "Available targets:"
-	@echo "  all       - Build shared and static libraries (default)"
-	@echo "  demo      - Build interactive TTY demo (Nuklear UI)"
-	@echo "  vendor-nuklear - Fetch pinned nuklear.h into third_party/nuklear"
-	@echo "  demo-py-output - Save baseline Python demo output"
-	@echo "  demo-c-output  - Save C demo ascii output"
-	@echo "  demo-morning-run - Save morning run scenario output"
-	@echo "  demo-evening-party - Save evening meal + party scenario output"
-	@echo "  outputs   - Generate all tracked demo output files"
-	@echo "  scenario-db-core - Build small core buffer (15 x 97 pts) to /tmp"
-	@echo "  scenario-db      - Build full 768-scenario buffer (data/scenario_buffer.duckdb)"
-	@echo "  query-demo       - Query the full buffer (stress x starving combo, summary + timecourse)"
-	@echo "  test-scenariogen - Run scenariogen + scenario-db pytest suites"
-	@echo "  clean     - Remove build artifacts"
-	@echo "  rebuild   - Clean and rebuild"
-	@echo "  debug     - Build with debug symbols"
-	@echo "  format    - Format code with clang-format"
-	@echo "  lto-test   - LTO integration test (link bitcode, compare output)"
-	@echo "  test-llvm - Compile .ll to native and validate numerical output"
-	@echo "  check-ir  - Run FileCheck structural IR validation"
-	@echo "  ir-metrics - Check IR metrics against golden reference values"
-	@echo "  llvm-ir   - Generate LLVM IR (.ll) and bitcode (.bc)"
-	@echo "  llvm-verify - Verify bitcode round-trips correctly"
-	@echo "  llvm-targets - Generate assembly for ARM64/Wasm/RISC-V"
-	@echo "  analyze-ir - Report IR metrics (instruction count, etc.)"
-	@echo "  optimize-ir - Run opt pass exploration (compare -O1/-O2/-O3/-Oz)"
-	@echo "  profile-ir  - Deep IR static profile (FLOPs, mem, vectorization)"
-	@echo "  analyze-all - Run all LLVM analysis targets"
-	@echo "  help      - Show this help message"
 
 # ── LLVM IR Tooling ──────────────────────────────────────────────────────────
 
