@@ -6,6 +6,8 @@ parameters + explicit defaults + descriptor-derived overrides) evaluated by the
 C engine, so clients can run their own parameter sweeps without owning any of
 the peer-reviewed mapping logic.
 
+---
+
 ## Design goals
 
 1. **Deterministic** — the same engine commit and descriptor registry produce

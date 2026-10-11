@@ -1,5 +1,9 @@
 # Building pfun-cma-engine-c
 
+Instructions for building the C library, Python package, and running demos.
+
+---
+
 ## Dependencies
 
 - **C compiler** (GCC, Clang, or MSVC)
@@ -57,6 +61,8 @@ image build, enable the optional build arg:
 docker compose build --build-arg ENABLE_UV_DEMO_SETUP=true build
 ```
 
+---
+
 ## Python Package
 
 ### Install from source
@@ -66,6 +72,8 @@ uv sync --dev          # using uv (recommended)
 # or
 pip install -e .       # editable install via pip
 ```
+
+---
 
 ## Demos
 
@@ -111,6 +119,8 @@ Outputs are saved under `docs/demo_outputs/`.
 ```
 
 Design, schema, tiers, and physiology: [`docs/SCENARIO_DB.md`](SCENARIO_DB.md).
+
+---
 
 ## Validation
 
