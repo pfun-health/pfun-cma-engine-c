@@ -125,7 +125,7 @@ $(NUKLEAR_HEADER):
 
 SCENARIO_DB := data/scenario_buffer.duckdb
 
-.PHONY: scenario-db scenario-db-core query-demo test-scenariogen
+.PHONY: scenario-db scenario-db-core query-demo test-scenariogen test-precision precision-report
 scenario-db-core:
 	$(PYTHON) $(DEMO_PY_DIR)/build_scenario_db.py --db /tmp/scenario_core.duckdb --tier core
 	@echo "Core buffer written to /tmp/scenario_core.duckdb (15 scenarios x 97 pts)"
@@ -141,6 +141,12 @@ query-demo: scenario-db  ## Query the default demo from the scenario database (a
 
 test-scenariogen:
 	$(PYTHON) -m pytest tests/test_scenariogen.py tests/test_scenario_db.py -q
+
+test-precision: all  ## Check FP32/FP16 boundary precision against FP64
+	$(PYTHON) -m pytest tests/test_precision.py -q
+
+precision-report: all  ## Generate the model precision assessment report
+	$(PYTHON) tools/precision_report.py
 
 # ── LLVM IR Tooling ──────────────────────────────────────────────────────────
 
@@ -249,4 +255,4 @@ analyze-all: analyze-ir optimize-ir profile-ir ir-metrics llvm-targets
 
 # Update the test target to run LLVM tests and the scenariogen suites too
 .PHONY: test
-test: test-llvm check-ir test-scenariogen
+test: test-llvm check-ir test-scenariogen test-precision
