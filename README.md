@@ -29,10 +29,12 @@ $ uv run pytest \
     tests/test_scenariogen.py \
     tests/test_scenario_db.py
 $ make test
+$ make precision-report
 ```
 
 - Python behavior/regression coverage lives in `tests/test_activity.py`, `tests/test_demo_scenarios.py`, `tests/test_scenariogen.py`, and `tests/test_scenario_db.py`.
 - LLVM numerical/structural validation is driven by `make test` and uses `tests/test_scaling.c`.
+- `make test-precision` checks FP32/FP16 input/output boundary error against the FP64 C engine; `make precision-report` regenerates [`docs/PRECISION.md`](docs/PRECISION.md).
 
 ### Python scenario demos
 
