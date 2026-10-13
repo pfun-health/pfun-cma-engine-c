@@ -128,7 +128,10 @@ Design, schema, tiers, and physiology: [`docs/SCENARIO_DB.md`](SCENARIO_DB.md).
 uv run pytest tests/test_activity.py tests/test_demo_scenarios.py \
   tests/test_scenariogen.py tests/test_scenario_db.py
 make test
+make test-precision
+make precision-report
 ```
 
 - `tests/test_scaling.c` is the C numerical harness used by `make test-llvm` and `make lto-test`.
 - `make test` runs LLVM numerical comparison and IR structural checks.
+- `make test-precision` checks numeric input/output boundary quantization; `make precision-report` regenerates the measured results in [`PRECISION.md`](PRECISION.md).
