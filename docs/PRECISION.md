@@ -4,7 +4,7 @@
 
 | Boundary representation | Worst scaled absolute error | Worst-case scenario | Assessment |
 |---|---:|---|---|
-| FP32 | 5.809e-08 | activity_stress | Pass (limit 1e-06) |
+| FP32 | 6.221e-08 | activity_stress | Pass (limit 1e-06) |
 | FP16 | 5.877e-04 | activity_stress | Fails (failure threshold 1e-04) |
 
 Scaled absolute error is `max(abs(candidate - FP64 reference)) / max(1, max(abs(FP64 reference)))` for the signal and scenario.
@@ -14,7 +14,7 @@ FP32 is accepted here at a scaled error of at most `1e-6`; FP16 is considered in
 
 | Precision | Signal | Scenario | Max absolute error | Max scaled absolute error |
 |---|---|---|---:|---:|
-| FP32 | `G` | activity_stress | 1.191e-07 | 5.226e-08 |
+| FP32 | `G` | activity_stress | 1.193e-07 | 5.235e-08 |
 | FP32 | `g` | baseline | 5.884e-08 | 4.921e-08 |
 | FP32 | `I_E` | activity_stress | 2.976e-08 | 2.976e-08 |
 | FP32 | `I_E_eff` | activity_stress | 3.493e-08 | 3.493e-08 |
@@ -22,14 +22,14 @@ FP32 is accepted here at a scaled error of at most `1e-6`; FP16 is considered in
 | FP32 | `m` | activity_stress | 4.854e-08 | 4.854e-08 |
 | FP32 | `c` | activity_stress | 6.531e-08 | 5.809e-08 |
 | FP32 | `c_mod` | activity_stress | 6.685e-08 | 4.958e-08 |
-| FP32 | `A` | activity_stress | 3.600e-08 | 3.600e-08 |
-| FP32 | `s_A` | activity_stress | 4.902e-08 | 4.902e-08 |
+| FP32 | `A` | activity_stress | 6.221e-08 | 6.221e-08 |
+| FP32 | `s_A` | activity_stress | 4.808e-08 | 4.808e-08 |
 | FP32 | `a` | activity_stress | 2.995e-08 | 2.995e-08 |
 | FP32 | `I_S` | activity_stress | 3.016e-08 | 3.016e-08 |
-| FP16 | `G` | activity_stress | 9.132e-04 | 4.007e-04 |
+| FP16 | `G` | activity_stress | 1.073e-03 | 4.710e-04 |
 | FP16 | `g` | baseline | 4.796e-04 | 4.011e-04 |
 | FP16 | `I_E` | activity_stress | 2.479e-04 | 2.479e-04 |
-| FP16 | `I_E_eff` | activity_stress | 3.387e-04 | 3.387e-04 |
+| FP16 | `I_E_eff` | activity_stress | 3.195e-04 | 3.195e-04 |
 | FP16 | `L` | activity_stress | 3.971e-04 | 3.971e-04 |
 | FP16 | `m` | activity_stress | 4.344e-04 | 4.344e-04 |
 | FP16 | `c` | activity_stress | 6.607e-04 | 5.877e-04 |
