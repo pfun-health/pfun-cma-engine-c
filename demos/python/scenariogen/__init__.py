@@ -5,7 +5,7 @@ Submodules
 - ``descriptors``  : health-metric dimensions/levels (mood, hunger, sleep, ...)
 - ``references``   : curated peer-reviewed reference registry (Zotero-first)
 - ``mapping``      : descriptor -> engine-free-parameter physiological mapping
-- ``db``           : DuckDB schema + population + query methods
+- ``db``           : SQLite schema + population + query methods
 - ``zotero``       : local Zotero library enrichment (optional)
 """
 

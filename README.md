@@ -61,18 +61,18 @@ $ ./build/demo
 
 ### PFun evidentiary scenario database
 
-Precomputed database (`DuckDB`) comprising quantitative definitions of evidence-backed physiological scenarios; essentially mapping, `descriptor` → `engine-parameter` → `curated citations`.
+Precomputed database (`SQLite`) comprising quantitative definitions of evidence-backed physiological scenarios; essentially mapping, `descriptor` → `engine-parameter` → `curated citations`.
 
 Build and query:
 
 ```sh
 # Build (precompute) the scenario database
 $ uv run python demos/python/build_scenario_db.py \
-    --db data/scenario_buffer.duckdb
+    --db data/scenario_buffer.sqlite
 
 # Query the database, return a specific scenario
 $ uv run python demos/python/query_scenario_db.py \
-    --db data/scenario_buffer.duckdb \
+    --db data/scenario_buffer.sqlite \
     --mood stressed --hunger starving \
     --sleep restful \
     --activity sedentary \

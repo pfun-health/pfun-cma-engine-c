@@ -1,6 +1,6 @@
 # Scenario Database Buffer (`scenariogen`)
 
-Precomputed, queryable DuckDB buffer of physiological scenarios for the PFun CMA
+Precomputed, queryable SQLite buffer of physiological scenarios for the PFun CMA
 engine. Each scenario is a fully-resolved set of engine parameters (free
 parameters + explicit defaults + descriptor-derived overrides) evaluated by the
 C engine, so clients can run their own parameter sweeps without owning any of
@@ -107,13 +107,13 @@ reporting how many descriptors had to default.
 
 ```sh
 # full buffer (768 × 193 points) — this is the default artifact
-.venv/bin/python demos/python/build_scenario_db.py --db data/scenario_buffer.duckdb
+.venv/bin/python demos/python/build_scenario_db.py --db data/scenario_buffer.sqlite
 
 # small core buffer (15 × 97 points) for tests/CI
-.venv/bin/python demos/python/build_scenario_db.py --db /tmp/scenario_core.duckdb --tier core
+.venv/bin/python demos/python/build_scenario_db.py --db /tmp/scenario_core.sqlite --tier core
 
 # query: exact + nearest match, summary, timecourse, references
-.venv/bin/python demos/python/query_scenario_db.py --db data/scenario_buffer.duckdb \
+.venv/bin/python demos/python/query_scenario_db.py --db data/scenario_buffer.sqlite \
   --mood stressed --hunger starving --sleep restful --activity sedentary --meal-schedule standard \
   --summary-only --timecourse --references
 ```

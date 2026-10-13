@@ -1,5 +1,5 @@
 """Tests for the scenario-buffer database layer (schema, population,
-precompute, lookup) against DuckDB files created under tmp_path.
+precompute, lookup) against SQLite files created under tmp_path.
 
 Engine-backed tests run the C CMA engine through the same path the
 precompute CLI uses; parity tests compare stored timecourses against a
@@ -25,15 +25,13 @@ for _p in (
 from scenariogen import db as sgen_db  # noqa: E402
 from scenariogen.mapping import resolve_default_params  # noqa: E402
 
-pytest.importorskip("duckdb")
-
 T_PTS = 49  # coarse resolution keeps the engine-backed tests fast
 
 
 @pytest.fixture()
 def buffer(tmp_path):
     """A fully seeded (but not yet precomputed) scenario buffer."""
-    path = str(tmp_path / "scenario_buffer.duckdb")
+    path = str(tmp_path / "scenario_buffer.sqlite")
     conn = sgen_db.create_scenario_db(path, replace=True)
     sgen_db.seed_all(conn)
     yield conn
@@ -44,8 +42,7 @@ def test_schema_tables_and_view(buffer):
     tables = {
         r[0]
         for r in buffer.execute(
-            "SELECT table_name FROM information_schema.tables "
-            "WHERE table_schema = 'main'"
+            "SELECT name FROM sqlite_master WHERE type = 'table'"
         ).fetchall()
     }
     assert {
@@ -56,8 +53,7 @@ def test_schema_tables_and_view(buffer):
     views = {
         r[0]
         for r in buffer.execute(
-            "SELECT table_name FROM information_schema.views "
-            "WHERE table_schema = 'main'"
+            "SELECT name FROM sqlite_master WHERE type = 'view'"
         ).fetchall()
     }
     assert "scenario_timecourses_long" in views
@@ -122,8 +118,10 @@ def test_zotero_enrichment_when_available(buffer, tmp_path):
 
 
 def test_precompute_core_tier(tmp_path):
+    import json
+
     conn = sgen_db.create_scenario_db(
-        str(tmp_path / "buffer.duckdb"), replace=True
+        str(tmp_path / "buffer.sqlite"), replace=True
     )
     sgen_db.seed_all(conn)
     t = np.linspace(0.0, 24.0, T_PTS)
@@ -135,15 +133,18 @@ def test_precompute_core_tier(tmp_path):
 
     # every scenario has a topic-complete timecourse at the requested
     # resolution
-    rows = conn.execute("SELECT n_pts, length(G), length(t) FROM scenarios").fetchall()
+    rows = conn.execute(
+        "SELECT n_pts, json_array_length(G), json_array_length(t) FROM scenarios"
+    ).fetchall()
     assert all(r == (T_PTS, T_PTS, T_PTS) for r in rows)
 
     # meal-component arrays: per-meal arrays of length n_pts
     for r in conn.execute(
         "SELECT g_meals, n_meals FROM scenarios ORDER BY scenario_id"
     ).fetchall():
-        assert len(r[0]) == r[1]
-        assert all(len(m) == T_PTS for m in r[0])
+        g_meals = json.loads(r[0])
+        assert len(g_meals) == r[1]
+        assert all(len(m) == T_PTS for m in g_meals)
 
     # meta build record
     meta = dict(conn.execute("SELECT key, value FROM meta").fetchall())
@@ -158,7 +159,7 @@ def test_every_combination_precomputed(tmp_path):
     import json
 
     conn = sgen_db.create_scenario_db(
-        str(tmp_path / "buffer.duckdb"), replace=True
+        str(tmp_path / "buffer.sqlite"), replace=True
     )
     sgen_db.seed_all(conn)
     sgen_db.precompute(conn, tier="full", t=np.linspace(0.0, 24.0, T_PTS))
@@ -180,7 +181,7 @@ def test_engine_parity_with_direct_call(tmp_path):
     from pfun_cma_engine.pfun_cma_engine import run_cma_engine_c
 
     conn = sgen_db.create_scenario_db(
-        str(tmp_path / "buffer.duckdb"), replace=True
+        str(tmp_path / "buffer.sqlite"), replace=True
     )
     sgen_db.seed_all(conn)
     t = np.linspace(0.0, 24.0, T_PTS)
@@ -203,6 +204,7 @@ def test_engine_parity_with_direct_call(tmp_path):
     stored = conn.execute(
         "SELECT t, G, c, I_E_eff FROM scenarios WHERE scenario_id = 0"
     ).fetchone()
+    stored = [json.loads(x) for x in stored]
     assert np.allclose(np.asarray(stored[0]), t, atol=1e-12)
     assert np.allclose(np.asarray(stored[1]), direct["G"], atol=1e-12)
     assert np.allclose(np.asarray(stored[2]), direct["c"], atol=1e-12)
@@ -219,6 +221,8 @@ def test_engine_parity_with_direct_call(tmp_path):
 
 def test_precompute_is_deterministic(tmp_path):
     def first_row(path):
+        import json
+
         conn = sgen_db.create_scenario_db(str(path), replace=True)
         sgen_db.seed_all(conn)
         sgen_db.precompute(conn, tier="core", t=np.linspace(0.0, 24.0, T_PTS))
@@ -226,17 +230,17 @@ def test_precompute_is_deterministic(tmp_path):
             "SELECT G, summary FROM scenarios WHERE scenario_id = 0"
         ).fetchone()
         conn.close()
-        return np.asarray(g[0]), g[1]
+        return np.asarray(json.loads(g[0])), g[1]
 
-    a_g, a_sum = first_row(tmp_path / "a.duckdb")
-    b_g, b_sum = first_row(tmp_path / "b.duckdb")
+    a_g, a_sum = first_row(tmp_path / "a.sqlite")
+    b_g, b_sum = first_row(tmp_path / "b.sqlite")
     assert np.array_equal(a_g, b_g)
     assert a_sum == b_sum
 
 
 def test_lookup_exact_and_nearest(tmp_path):
     conn = sgen_db.create_scenario_db(
-        str(tmp_path / "buffer.duckdb"), replace=True
+        str(tmp_path / "buffer.sqlite"), replace=True
     )
     sgen_db.seed_all(conn)
     sgen_db.precompute(conn, tier="core", t=np.linspace(0.0, 24.0, T_PTS))
@@ -271,7 +275,7 @@ def test_lookup_exact_and_nearest(tmp_path):
 
 def test_timecourse_helper_g_semantics(tmp_path):
     conn = sgen_db.create_scenario_db(
-        str(tmp_path / "buffer.duckdb"), replace=True
+        str(tmp_path / "buffer.sqlite"), replace=True
     )
     sgen_db.seed_all(conn)
     t = np.linspace(0.0, 24.0, T_PTS)
@@ -307,7 +311,7 @@ def test_physiological_direction_in_buffer(tmp_path):
     stress -> higher daily cortisol; moderate activity -> an activity signal
     with post-exercise sensitization; starving -> larger first meal."""
     conn = sgen_db.create_scenario_db(
-        str(tmp_path / "buffer.duckdb"), replace=True
+        str(tmp_path / "buffer.sqlite"), replace=True
     )
     sgen_db.seed_all(conn)
     sgen_db.precompute(conn, tier="core", t=np.linspace(0.0, 24.0, T_PTS))

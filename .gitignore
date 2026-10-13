@@ -280,4 +280,4 @@ pyrightconfig.json
 /test_scaling
 
 # Scenario database buffer (build artifact; rebuild with `make scenario-db`)
-/data/scenario_buffer.duckdb
+/data/scenario_buffer.sqlite

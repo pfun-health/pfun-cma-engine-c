@@ -7,7 +7,7 @@ Usage
                                             [--sleep restful]
                                             [--activity light]
                                             [--meal-schedule standard]
-                                            [--db data/scenario_buffer.duckdb]
+                                            [--db data/scenario_buffer.sqlite]
                                             [--summary-only]
                                             [--timecourse]
                                             [--references]
@@ -33,7 +33,7 @@ def _setup_sys_path() -> None:
 
 def main() -> int:
     parser = argparse.ArgumentParser(description="Query the CMA scenario buffer")
-    parser.add_argument("--db", default=None, help=".duckdb path")
+    parser.add_argument("--db", default=None, help=".sqlite path")
     parser.add_argument("--mood", default=None)
     parser.add_argument("--hunger", default=None)
     parser.add_argument("--sleep", default=None)

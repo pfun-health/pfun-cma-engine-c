@@ -1,7 +1,7 @@
-"""Scenario buffer: DuckDB schema creation and population methods.
+"""Scenario buffer: SQLite schema creation and population methods.
 
 This module implements the database layer of the scenario generator.  It
-creates and populates a single-file DuckDB database (``scenario_buffer``)
+creates and populates a single-file SQLite database (``scenario_buffer``)
 that collates, per precomputed scenario combination:
 
 - the *free parameters* resolved from the health-metric descriptors
@@ -10,7 +10,7 @@ that collates, per precomputed scenario combination:
 - the *peer-reviewed references* supporting each mapping
   (``references``, ``descriptor_refs``, ``parameter_overrides``),
 - the *specific timecourse* produced by the CMA engine
-  (wide-format ARRAY columns on ``scenarios`` + the long-format view
+  (wide-format JSON-array TEXT columns on ``scenarios`` + the long-format view
   ``scenario_timecourses_long``).
 
 The resulting file is the "precomputed scenario buffer": client-facing
@@ -23,6 +23,7 @@ from __future__ import annotations
 
 import json
 import os
+import sqlite3
 import sys
 from datetime import datetime, timezone
 
@@ -33,126 +34,126 @@ from datetime import datetime, timezone
 SCHEMA: tuple[str, ...] = (
     """
     CREATE TABLE IF NOT EXISTS meta (
-        key   VARCHAR PRIMARY KEY,
-        value VARCHAR
+        key   TEXT PRIMARY KEY,
+        value TEXT
     )
     """,
     """
     CREATE TABLE IF NOT EXISTS dimensions (
-        dimension_id       VARCHAR PRIMARY KEY,
-        name               VARCHAR NOT NULL,
-        description        VARCHAR,
-        default_descriptor VARCHAR NOT NULL
+        dimension_id       TEXT PRIMARY KEY,
+        name               TEXT NOT NULL,
+        description        TEXT,
+        default_descriptor TEXT NOT NULL
     )
     """,
     """
     CREATE TABLE IF NOT EXISTS descriptors (
-        descriptor_id     VARCHAR PRIMARY KEY,
-        dimension_id      VARCHAR NOT NULL REFERENCES dimensions(dimension_id),
-        label             VARCHAR NOT NULL,
+        descriptor_id     TEXT PRIMARY KEY,
+        dimension_id      TEXT NOT NULL REFERENCES dimensions(dimension_id),
+        label             TEXT NOT NULL,
         ordinal           INTEGER NOT NULL,
-        description       VARCHAR,
-        physiological_note VARCHAR,
+        description       TEXT,
+        physiological_note TEXT,
         UNIQUE (dimension_id, label)
     )
     """,
     """
     CREATE TABLE IF NOT EXISTS citations (
-        ref_id           VARCHAR PRIMARY KEY,
-        citation         VARCHAR NOT NULL,
-        authors          VARCHAR,
+        ref_id           TEXT PRIMARY KEY,
+        citation         TEXT NOT NULL,
+        authors          TEXT,
         year             INTEGER,
-        title            VARCHAR,
-        journal          VARCHAR,
-        doi              VARCHAR,
-        url              VARCHAR,
+        title            TEXT,
+        journal          TEXT,
+        doi              TEXT,
+        url              TEXT,
         zotero_item_id   INTEGER,
-        local_pdf_path   VARCHAR,
-        origin           VARCHAR NOT NULL
+        local_pdf_path   TEXT,
+        origin           TEXT NOT NULL
     )
     """,
     """
     CREATE TABLE IF NOT EXISTS descriptor_refs (
-        descriptor_id VARCHAR NOT NULL REFERENCES descriptors(descriptor_id),
-        ref_id        VARCHAR NOT NULL REFERENCES citations(ref_id),
-        note          VARCHAR,
+        descriptor_id TEXT NOT NULL REFERENCES descriptors(descriptor_id),
+        ref_id        TEXT NOT NULL REFERENCES citations(ref_id),
+        note          TEXT,
         PRIMARY KEY (descriptor_id, ref_id)
     )
     """,
     """
     CREATE TABLE IF NOT EXISTS model_parameters (
-        param_name    VARCHAR PRIMARY KEY,
-        description   VARCHAR,
-        default_value VARCHAR,
+        param_name    TEXT PRIMARY KEY,
+        description   TEXT,
+        default_value TEXT,
         is_free       BOOLEAN NOT NULL,
-        domain        VARCHAR
+        domain        TEXT
     )
     """,
     """
     CREATE TABLE IF NOT EXISTS parameter_overrides (
-        descriptor_id VARCHAR NOT NULL REFERENCES descriptors(descriptor_id),
-        param_name    VARCHAR NOT NULL,
-        op            VARCHAR NOT NULL,
-        value         VARCHAR NOT NULL,   -- JSON-encoded scalar or list
-        rationale     VARCHAR,
-        ref_id        VARCHAR NOT NULL REFERENCES citations(ref_id),
+        descriptor_id TEXT NOT NULL REFERENCES descriptors(descriptor_id),
+        param_name    TEXT NOT NULL,
+        op            TEXT NOT NULL,
+        value         TEXT NOT NULL,   -- JSON-encoded scalar or list
+        rationale     TEXT,
+        ref_id        TEXT NOT NULL REFERENCES citations(ref_id),
         PRIMARY KEY (descriptor_id, param_name, ref_id)
     )
     """,
     """
     CREATE TABLE IF NOT EXISTS scenarios (
         scenario_id    INTEGER PRIMARY KEY,
-        slug           VARCHAR UNIQUE NOT NULL,
-        title          VARCHAR,
-        descriptor_set JSON NOT NULL,
-        params         JSON NOT NULL,
+        slug           TEXT UNIQUE NOT NULL,
+        title          TEXT,
+        descriptor_set TEXT NOT NULL,
+        params         TEXT NOT NULL,
         n_meals        INTEGER NOT NULL,
         n_pts          INTEGER NOT NULL,
-        t              DOUBLE[],
-        G              DOUBLE[],
-        g_meals        DOUBLE[][],
-        I_E            DOUBLE[],
-        I_E_eff        DOUBLE[],
-        L              DOUBLE[],
-        m              DOUBLE[],
-        c              DOUBLE[],
-        c_mod          DOUBLE[],
-        A              DOUBLE[],
-        s_A            DOUBLE[],
-        a_insulin      DOUBLE[],
-        I_S            DOUBLE[],
-        summary        JSON NOT NULL,
-        status         VARCHAR NOT NULL DEFAULT 'precomputed',
-        created_at     TIMESTAMP DEFAULT current_timestamp
+        t              TEXT,
+        G              TEXT,
+        g_meals        TEXT,
+        I_E            TEXT,
+        I_E_eff        TEXT,
+        L              TEXT,
+        m              TEXT,
+        c              TEXT,
+        c_mod          TEXT,
+        A              TEXT,
+        s_A            TEXT,
+        a_insulin      TEXT,
+        I_S            TEXT,
+        summary        TEXT NOT NULL,
+        status         TEXT NOT NULL DEFAULT 'precomputed',
+        created_at     TEXT DEFAULT CURRENT_TIMESTAMP
     )
     """,
     """
     CREATE TABLE IF NOT EXISTS scenario_refs (
         scenario_id INTEGER NOT NULL REFERENCES scenarios(scenario_id),
-        ref_id      VARCHAR NOT NULL REFERENCES citations(ref_id),
-        role        VARCHAR,
+        ref_id      TEXT NOT NULL REFERENCES citations(ref_id),
+        role        TEXT,
         PRIMARY KEY (scenario_id, ref_id)
     )
     """,
     """
-    CREATE OR REPLACE VIEW scenario_timecourses_long AS
+    CREATE VIEW IF NOT EXISTS scenario_timecourses_long AS
     SELECT
-        scenario_id,
-        t[i] AS t,
-        G[i] AS G,
-        list_transform(g_meals, m -> m[i]) AS g,
-        I_E[i] AS I_E,
-        I_E_eff[i] AS I_E_eff,
-        L[i] AS L,
-        m[i] AS m,
-        c[i] AS c,
-        c_mod[i] AS c_mod,
-        A[i] AS A,
-        s_A[i] AS s_A,
-        a_insulin[i] AS a,
-        I_S[i] AS I_S
-    FROM scenarios,
-         unnest(range(1, length(scenarios.t) + 1)) AS idx(i)
+        s.scenario_id AS scenario_id,
+        json_extract(s.t, '$[' || je.key || ']') AS t,
+        json_extract(s.G, '$[' || je.key || ']') AS G,
+        (SELECT json_group_array(json_extract(gm.value, '$[' || je.key || ']'))
+           FROM json_each(s.g_meals) AS gm) AS g,
+        json_extract(s.I_E, '$[' || je.key || ']') AS I_E,
+        json_extract(s.I_E_eff, '$[' || je.key || ']') AS I_E_eff,
+        json_extract(s.L, '$[' || je.key || ']') AS L,
+        json_extract(s.m, '$[' || je.key || ']') AS m,
+        json_extract(s.c, '$[' || je.key || ']') AS c,
+        json_extract(s.c_mod, '$[' || je.key || ']') AS c_mod,
+        json_extract(s.A, '$[' || je.key || ']') AS A,
+        json_extract(s.s_A, '$[' || je.key || ']') AS s_A,
+        json_extract(s.a_insulin, '$[' || je.key || ']') AS a,
+        json_extract(s.I_S, '$[' || je.key || ']') AS I_S
+    FROM scenarios AS s, json_each(s.t) AS je
     """,
 )
 
@@ -165,27 +166,26 @@ def _resolve_db_path(path: str | None) -> str:
     if path is None:
         here = os.path.dirname(os.path.abspath(__file__))
         return os.path.normpath(
-            os.path.join(here, "..", "..", "..", "data", "scenario_buffer.duckdb")
+            os.path.join(here, "..", "..", "..", "data", "scenario_buffer.sqlite")
         )
     return os.path.abspath(path)
 
 
 def create_scenario_db(
     path: str | None = None, *, replace: bool = False
-) -> "duckdb.DuckDBPyConnection":
+) -> sqlite3.Connection:
     """Open (and if needed create) the scenario buffer database.
 
-    Returns a DuckDB connection.  When ``replace`` is True an existing file
+    Returns a sqlite3 connection (autocommit).  When ``replace`` is True an existing file
     is dropped first (a full rebuild).
     """
-    import duckdb
-
     db_path = _resolve_db_path(path)
     if replace and os.path.exists(db_path):
         os.remove(db_path)
     if not os.path.isdir(os.path.dirname(db_path)):
         os.makedirs(os.path.dirname(db_path), exist_ok=True)
-    conn = duckdb.connect(db_path)
+    conn = sqlite3.connect(db_path, isolation_level=None)
+    conn.execute("PRAGMA synchronous = OFF")
     create_schema(conn)
     return conn
 
@@ -217,8 +217,7 @@ def drop_schema(conn) -> None:
 def has_schema(conn) -> bool:
     """True when the core tables exist."""
     rows = conn.execute(
-        "SELECT count(*) FROM information_schema.tables "
-        "WHERE table_schema='main' AND table_name IN "
+        "SELECT count(*) FROM sqlite_master WHERE type='table' AND name IN "
         "('dimensions','descriptors','citations','scenarios')"
     ).fetchone()
     return bool(rows and rows[0] >= 4)
@@ -558,19 +557,19 @@ def precompute(
             [
                 scenario_id, slug, title_for(combo), desc_json, params_json,
                 int(len(params["tM"])), int(len(t)),
-                list(np.asarray(t, dtype=float)),
-                list(np.asarray(out["G"], dtype=float)),
-                [list(np.asarray(g_j, dtype=float)) for g_j in out["g"]],
-                list(np.asarray(out["I_E"], dtype=float)),
-                list(np.asarray(out["I_E_eff"], dtype=float)),
-                list(np.asarray(out["L"], dtype=float)),
-                list(np.asarray(out["m"], dtype=float)),
-                list(np.asarray(out["c"], dtype=float)),
-                list(np.asarray(out["c_mod"], dtype=float)),
-                list(np.asarray(out["A"], dtype=float)),
-                list(np.asarray(out["s_A"], dtype=float)),
-                list(np.asarray(out["a"], dtype=float)),
-                list(np.asarray(out["I_S"], dtype=float)),
+                _arr(t),
+                _arr(out["G"]),
+                json.dumps([np.asarray(g_j, dtype=float).tolist() for g_j in out["g"]]),
+                _arr(out["I_E"]),
+                _arr(out["I_E_eff"]),
+                _arr(out["L"]),
+                _arr(out["m"]),
+                _arr(out["c"]),
+                _arr(out["c_mod"]),
+                _arr(out["A"]),
+                _arr(out["s_A"]),
+                _arr(out["a"]),
+                _arr(out["I_S"]),
                 summary_json,
             ],
         )
@@ -608,7 +607,7 @@ def precompute(
         "t_start": str(float(t[0])),
         "t_end": str(float(t[-1])),
         "built_at": datetime.now(timezone.utc).isoformat(timespec="seconds"),
-        "duckdb_version": _duckdb_version(),
+        "sqlite_version": sqlite3.sqlite_version,
     }
     if meta_extra:
         meta.update(meta_extra)
@@ -621,13 +620,11 @@ def precompute(
     return written
 
 
-def _duckdb_version() -> str:
-    try:
-        import duckdb
+def _arr(a) -> str:
+    """JSON-encode a numeric array for a TEXT column."""
+    import numpy as np
 
-        return duckdb.__version__
-    except Exception:  # pragma: no cover
-        return "unknown"
+    return json.dumps(np.asarray(a, dtype=float).tolist())
 
 
 def _jsonable(params: dict) -> dict:
@@ -748,8 +745,8 @@ def _scenario_dict(
 def timecourse(conn, scenario_id: int) -> list[dict]:
     """Long-format timecourse points for a scenario.
 
-    The points are zipped in Python from the wide-format ARRAY columns, which
-    is robust across DuckDB versions; the SQL view
+    The points are zipped in Python from the wide-format JSON-array columns, which
+    keeps the helper independent of SQLite JSON functions; the SQL view
     ``scenario_timecourses_long`` remains available for external consumers.
     """
     row = conn.execute(
@@ -759,7 +756,8 @@ def timecourse(conn, scenario_id: int) -> list[dict]:
     ).fetchone()
     if row is None:
         raise KeyError(f"scenario {scenario_id} not found")
-    t, G, g_meals, I_E, I_E_eff, L, m, c, c_mod, A, s_A, a_insulin, I_S = row
+    (t, G, g_meals, I_E, I_E_eff, L, m, c, c_mod, A, s_A, a_insulin,
+     I_S) = (json.loads(x) for x in row)
     n = len(t)
     n_meals = len(g_meals)
     return [
@@ -786,13 +784,15 @@ def references_for(conn, ref_ids: list[str] | None = None) -> list[dict]:
     """Reference rows (curated citation strings)."""
     if ref_ids is None:
         rows = conn.execute(
-            "PLACEHOLDER"
+            "SELECT ref_id, citation, year, journal, doi, origin "
+            "FROM citations ORDER BY ref_id"
         ).fetchall()
     else:
+        marks = ", ".join("?" * len(ref_ids))
         rows = conn.execute(
             "SELECT ref_id, citation, year, journal, doi, origin "
-            "FROM citations WHERE ref_id = ANY(?) ORDER BY ref_id",
-            [ref_ids],
+            f"FROM citations WHERE ref_id IN ({marks}) ORDER BY ref_id",
+            list(ref_ids),
         ).fetchall()
     return [
         {

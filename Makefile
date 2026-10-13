@@ -9,7 +9,7 @@ CXXFLAGS := -Wall -Wextra -O2 -std=c++11
 LDFLAGS := -lm
 
 # Python interpreter for demo scripts (prefer project venv)
-PYTHON := $(shell uv venv && test -x .venv/bin/python && echo .venv/bin/python || echo python3)
+PYTHON := $(shell test -x .venv/bin/python && echo .venv/bin/python || ( uv venv && echo .venv/bin/python ) )
 
 # Nuklear
 NUKLEAR_DIR := third_party/nuklear
@@ -67,7 +67,8 @@ $(BUILD_DIR)/%.o: $(SRC_DIR)/%.c $(HEADERS)
 # Clean build artifacts
 .PHONY: clean
 clean:
-	rm -rf $(BUILD_DIR) $(LIB_DIR)/*.so $(LIB_DIR)/*.a $(LIB_DIR)/*.o
+	@echo "cleaning any existing build outputs..."
+	@rm -rf .venv $(BUILD_DIR) $(LIB_DIR)/*.so $(LIB_DIR)/*.a $(LIB_DIR)/*.o
 
 # Rebuild from scratch
 .PHONY: rebuild
@@ -80,22 +81,26 @@ debug: clean all
 
 # Format code
 .PHONY: format
-format:
+format:  ## Format code using clang-format
 	@echo "Formatting code with clang-format..."
 	clang-format -i $(SRC_DIR)/*.c $(SRC_DIR)/*.h 2>/dev/null || echo "clang-format not available"
 
 # Check code style
 .PHONY: check-format
-check-format:
+check-format:  ## check code formatting using clang-format
 	clang-format --dry-run -Werror $(SRC_DIR)/*.c $(SRC_DIR)/*.h 2>/dev/null || echo "clang-format not available"
+
+.PHONY: python-setup
+python-setup:  ## Setup python environment using uv
+	uv sync --dev --all-extras
+	. ./.venv/bin/activate
 
 # Capture demo session output to markdown
 .PHONY: demo-py-output demo-c-output demo-morning-run demo-evening-party outputs
 outputs: demo-py-output demo-c-output demo-morning-run demo-evening-party  ## Capture demo session (tty), output to markdown
 
 .PHONY: demo-py-output
-demo-py-output: all  ## Run the Python-based demo (default settings)
-	uv sync
+demo-py-output: all python-setup  ## Run the Python-based demo (default settings)
 	$(PYTHON) $(DEMO_PY_DIR)/demo.py --save $(DEMO_OUTPUT_DIR)/DEMO_PY_OUTPUT.md
 
 .PHONY: demo-c-output
@@ -127,12 +132,12 @@ $(NUKLEAR_HEADER):
 
 # ── Scenario database buffer ─────────────────────────────────────────────────
 
-SCENARIO_DB := data/scenario_buffer.duckdb
+SCENARIO_DB := data/scenario_buffer.sqlite
 
 .PHONY: scenario-db scenario-db-core query-demo test-scenariogen test-precision precision-report
 scenario-db-core:
-	$(PYTHON) $(DEMO_PY_DIR)/build_scenario_db.py --db /tmp/scenario_core.duckdb --tier core
-	@echo "Core buffer written to /tmp/scenario_core.duckdb (15 scenarios x 97 pts)"
+	$(PYTHON) $(DEMO_PY_DIR)/build_scenario_db.py --db /tmp/scenario_core.sqlite --tier core
+	@echo "Core buffer written to /tmp/scenario_core.sqlite (15 scenarios x 97 pts)"
 
 scenario-db:  ## Build the scenario database (precompute labeled scenarios using the compiled pfun-cma-engine libs)
 	@mkdir -p data

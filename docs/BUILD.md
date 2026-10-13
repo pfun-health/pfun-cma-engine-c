@@ -106,14 +106,14 @@ Outputs are saved under `docs/demo_outputs/`.
 ### Scenario database buffer
 
 ```sh
-# full buffer (768 scenarios x 193 points) -> data/scenario_buffer.duckdb
-.venv/bin/python demos/python/build_scenario_db.py --db data/scenario_buffer.duckdb
+# full buffer (768 scenarios x 193 points) -> data/scenario_buffer.sqlite
+.venv/bin/python demos/python/build_scenario_db.py --db data/scenario_buffer.sqlite
 
 # small core buffer (15 scenarios x 97 points) for fast tests/CI
-.venv/bin/python demos/python/build_scenario_db.py --db /tmp/scenario_core.duckdb --tier core
+.venv/bin/python demos/python/build_scenario_db.py --db /tmp/scenario_core.sqlite --tier core
 
 # query a scenario: exact + nearest match, summary, timecourse, references
-.venv/bin/python demos/python/query_scenario_db.py --db data/scenario_buffer.duckdb \
+.venv/bin/python demos/python/query_scenario_db.py --db data/scenario_buffer.sqlite \
   --mood stressed --hunger starving --sleep restful --activity sedentary --meal-schedule standard \
   --summary-only --timecourse --references
 ```

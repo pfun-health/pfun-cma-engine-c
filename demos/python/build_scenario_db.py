@@ -1,16 +1,16 @@
 #!/usr/bin/env python3
-"""Build the precomputed CMА scenario buffer (DuckDB).
+"""Build the precomputed CMА scenario buffer (SQLite).
 
 Usage
 -----
-    python demos/python/build_scenario_db.py [--db data/scenario_buffer.duckdb]
+    python demos/python/build_scenario_db.py [--db data/scenario_buffer.sqlite]
                                              [--tier full|core]
                                              [--pts 193]
                                              [--seed 42]
                                              [--no-precompute]
                                              [--zotero /path/to/zotero.sqlite]
 
-The default target writes ``data/scenario_buffer.duckdb``: one schema +
+The default target writes ``data/scenario_buffer.sqlite``: one schema +
 seeded catalogs (dimensions, descriptors, references, parameter overrides)
 and one row per descriptor combination with the full engine timecourse
 stored in wide ARRAY columns (plus the long-format SQL view).
@@ -47,7 +47,7 @@ def _git_sha() -> str | None:
 
 def main() -> int:
     parser = argparse.ArgumentParser(description="Build the CMA scenario buffer")
-    parser.add_argument("--db", default=None, help="output .duckdb path")
+    parser.add_argument("--db", default=None, help="output .sqlite path")
     parser.add_argument(
         "--tier", choices=("core", "full"), default="full",
         help="buffer tier (default: full cross-product)",
