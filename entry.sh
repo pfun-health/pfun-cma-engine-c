@@ -11,15 +11,13 @@ run_build() {
 		echo "Warning: Extra (unused) arguments were provided:\n'${EXTRA_ARGS}'"
 		sleep 1s
 	fi
-	cmake -S . -B build/cmake-build
-	cmake --build build/cmake-build
+	make all
 }
 
 run_demo() {
 	local SCENARIO="${1:-baseline}"
 	make clean
-	make
-	uv sync
+	make demo-py-output
 	uv run python demos/python/demo.py --scenario "${SCENARIO}"
 }
 

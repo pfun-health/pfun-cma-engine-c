@@ -9,7 +9,7 @@ CXXFLAGS := -Wall -Wextra -O2 -std=c++11
 LDFLAGS := -lm
 
 # Python interpreter for demo scripts (prefer project venv)
-PYTHON := $(shell test -x .venv/bin/python && echo .venv/bin/python || echo python3)
+PYTHON := $(shell uv venv && test -x .venv/bin/python && echo .venv/bin/python || echo python3)
 
 # Nuklear
 NUKLEAR_DIR := third_party/nuklear
@@ -91,23 +91,27 @@ check-format:
 
 # Capture demo session output to markdown
 .PHONY: demo-py-output demo-c-output demo-morning-run demo-evening-party outputs
-outputs: demo-py-output demo-c-output demo-morning-run demo-evening-party
+outputs: demo-py-output demo-c-output demo-morning-run demo-evening-party  ## Capture demo session (tty), output to markdown
 
-demo-py-output:  ## Run the Python-based demo (default settings)
+.PHONY: demo-py-output
+demo-py-output: all  ## Run the Python-based demo (default settings)
+	uv sync
 	$(PYTHON) $(DEMO_PY_DIR)/demo.py --save $(DEMO_OUTPUT_DIR)/DEMO_PY_OUTPUT.md
 
+.PHONY: demo-c-output
 demo-c-output: demo  ## Run the C-based demo (default settings)
 	$(BUILD_DIR)/demo --ascii --save $(DEMO_OUTPUT_DIR)/DEMO_C_OUTPUT.md
 
+.PHONY: demo-morning-run
 demo-morning-run:  ## Generate a demo scenario to simulate a "morning run" (utilizes metabolic activity parameters)
 	$(PYTHON) $(DEMO_PY_DIR)/demo.py --scenario morning-run --save $(DEMO_OUTPUT_DIR)/DEMO_MORNING_RUN_OUTPUT.md
 
+.PHONY: demo-evening-party
 demo-evening-party:  ## Generate an "evening party" scenario.
 	$(PYTHON) $(DEMO_PY_DIR)/demo.py --scenario evening-party --save $(DEMO_OUTPUT_DIR)/DEMO_EVENING_PARTY_OUTPUT.md
 
-# Interactive/ASCII demo (Nuklear TTY UI + terminal backend)
 .PHONY: demo
-demo: $(BUILD_DIR)/demo
+demo: $(BUILD_DIR)/demo  ## Interactive/ASCII demo (Nuklear TTY UI + terminal backend)
 
 $(BUILD_DIR)/demo: $(DEMO_C_DIR)/demo.c $(DEMO_C_DIR)/term.c $(DEMO_C_DIR)/term.h $(SRC_DIR)/pfun_cma_engine.h $(NUKLEAR_HEADER) | directories
 	$(CC) $(CFLAGS) -D_DEFAULT_SOURCE -Wno-unused-function -Wno-unused-parameter \
@@ -139,7 +143,7 @@ query-demo: scenario-db  ## Query the default demo from the scenario database (a
 	  --mood stressed --hunger starving --sleep restful --activity sedentary \
 	  --meal-schedule standard --summary-only --timecourse --references
 
-test-scenariogen:
+test-scenariogen:  ## Test scenario generation
 	$(PYTHON) -m pytest tests/test_scenariogen.py tests/test_scenario_db.py -q
 
 test-precision: all  ## Check FP32/FP16 boundary precision against FP64
@@ -157,12 +161,10 @@ LLVM_BC   := $(BUILD_DIR)/pfun_cma_engine.bc
 $(LLVM_IR) $(LLVM_BC) &: tools/convert-to-llvm.py $(SRC_DIR)/pfun_cma_engine.c | directories
 	python3 tools/convert-to-llvm.py $(SRC_DIR)/pfun_cma_engine.c
 
-# Generate LLVM IR (.ll) and bitcode (.bc) from C source
-.PHONY: llvm-ir
+.PHONY: llvm-ir  ## Generate LLVM IR (.ll) and bitcode (.bc) from C source
 llvm-ir: $(LLVM_IR) $(LLVM_BC)
 
-# Verify LLVM bitcode round-trips correctly
-.PHONY: llvm-verify
+.PHONY: llvm-verify  ## Verify LLVM bitcode round-trips correctly
 llvm-verify: $(LLVM_BC)
 	llvm-dis $(LLVM_BC) -o /dev/null && echo "✅ Bitcode round-trips OK" || echo "❌ Bitcode verification failed"
 
@@ -217,9 +219,8 @@ llvm-targets: $(LLVM_IR)
 	@echo "=== RISC-V ==="
 	llc -mtriple=riscv64-linux-gnu -o $(BUILD_DIR)/pfun_cma_engine-rv64.s $(LLVM_IR) 2>/dev/null && echo "✅ RISC-V assembly generated" || echo "❌ RISC-V target not available"
 
-# Run opt passes and report metrics
 .PHONY: analyze-ir
-analyze-ir: $(LLVM_IR)
+analyze-ir: $(LLVM_IR)  ## Run opt passes and report metrics
 	@echo "=== IR Metrics ==="
 	@echo "Instruction count:"
 	@cat $(LLVM_IR) | grep -c '^\s' || true
@@ -234,25 +235,20 @@ analyze-ir: $(LLVM_IR)
 	@echo "Basic blocks:"
 	@awk '/^[0-9]+:\s*$$/{count++} END{print count+0}' $(LLVM_IR) || true
 
-# Run opt pass exploration on the IR
 .PHONY: optimize-ir
-optimize-ir: $(LLVM_IR)
+optimize-ir: $(LLVM_IR)  ## Run opt pass exploration on the IR
 	bash tools/ir-pass-explorer.sh $(LLVM_IR)
 
-# Run deep IR static profiling
 .PHONY: profile-ir
-profile-ir: $(LLVM_IR)
+profile-ir: $(LLVM_IR)  ## Run deep IR static profiling
 	bash tools/ir-profile.sh $(LLVM_IR)
 
-# Check IR metrics against golden reference values
 .PHONY: ir-metrics
-ir-metrics: $(LLVM_IR)
+ir-metrics: $(LLVM_IR)  ## Check IR metrics against golden reference values
 	bash tools/check-ir-metrics.sh $(LLVM_IR)
 
-# Run all LLVM-related analysis targets
 .PHONY: analyze-all
-analyze-all: analyze-ir optimize-ir profile-ir ir-metrics llvm-targets
+analyze-all: analyze-ir optimize-ir profile-ir ir-metrics llvm-targets  ## Run all LLVM-related analysis targets
 
-# Update the test target to run LLVM tests and the scenariogen suites too
 .PHONY: test
-test: test-llvm check-ir test-scenariogen test-precision
+test: test-llvm check-ir test-scenariogen test-precision  ## Update the test target to run LLVM tests and the scenariogen suites too
