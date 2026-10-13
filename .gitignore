@@ -281,3 +281,25 @@ pyrightconfig.json
 
 # Scenario database buffer (build artifact; rebuild with `make scenario-db`)
 /data/scenario_buffer.sqlite
+
+# Devenv
+.devenv*
+devenv.local.nix
+devenv.local.yaml
+
+# direnv
+.direnv
+
+# pre-commit
+.pre-commit-config.yaml
+
+# Devenv
+.devenv*
+devenv.local.nix
+devenv.local.yaml
+
+# direnv
+.direnv
+
+# pre-commit
+.pre-commit-config.yaml
