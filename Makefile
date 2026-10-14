@@ -69,7 +69,7 @@ $(BUILD_DIR)/%.o: $(SRC_DIR)/%.c $(HEADERS)
 .PHONY: clean
 clean:
 	@echo "cleaning any existing build outputs..."
-	@rm -rf .venv $(LIB_DIR)_c.egg-info $(BUILD_DIR) $(LIB_DIR)/*.so $(LIB_DIR)/*.a $(LIB_DIR)/*.o
+	@rm -rfv .venv dist $(LIB_DIR)_c.egg-info $(BUILD_DIR) $(LIB_DIR)/*.so $(LIB_DIR)/*.a $(LIB_DIR)/*.o
 
 # Rebuild from scratch
 .PHONY: rebuild
@@ -91,8 +91,11 @@ format:  ## Format code using clang-format
 check-format:  ## check code formatting using clang-format
 	clang-format --dry-run -Werror $(SRC_DIR)/*.c $(SRC_DIR)/*.h 2>/dev/null || echo "clang-format not available"
 
-.PHONY: python-setup
-python-setup:  ## Setup python environment using uv
+.PHONY: python-setup python-setup-dev
+python-setup :  ## Setup python environment using uv (runtime dependencies only)
+	uv sync
+	. ./.venv/bin/activate
+python-setup-dev :  ## (dev) Setup python environment using uv
 	uv sync --dev --all-extras
 	. ./.venv/bin/activate
 
@@ -102,6 +105,7 @@ outputs: demo-py-output demo-c-output demo-ts-output demo-morning-run demo-eveni
 
 .PHONY: demo-py-output
 demo-py-output: all python-setup  ## Run the Python-based demo (default settings)
+	. ./.venv/bin/activate
 	$(PYTHON) $(DEMO_PY_DIR)/demo.py --save $(DEMO_OUTPUT_DIR)/DEMO_PY_OUTPUT.md
 
 .PHONY: demo-c-output
