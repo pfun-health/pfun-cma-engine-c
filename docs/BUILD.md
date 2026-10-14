@@ -103,6 +103,12 @@ Node.js 22.6 or newer and npm, but not the Python demo environment.
 
 ```sh
 make demo-ts-output
+```
+
+Or, after building the shared library and installing npm dependencies:
+
+```sh
+make all && npm ci
 node --experimental-strip-types demos/typescript/demo.ts \
   --scenario morning-run --pts 97
 ```

@@ -3,7 +3,7 @@
     "koffi": "3.3.3"
   },
   "name": "pfun-cma-engine-c-demo",
-  "private": "true",
+  "private": true,
   "type": "module",
   "scripts": {
     "demo": "node --experimental-strip-types demos/typescript/demo.ts"

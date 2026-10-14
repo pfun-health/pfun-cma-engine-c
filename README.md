@@ -65,6 +65,7 @@ $ make demo-ts-output
 To run a different scenario or point count directly:
 
 ```sh
+$ make all && npm ci
 $ node --experimental-strip-types demos/typescript/demo.ts \
     --scenario morning-run --pts 97
 ```
