@@ -2,7 +2,7 @@
   "dependencies": {
     "koffi": "3.3.3"
   },
-  "name": "pfun-cma-engine-c-demo",
+  "name": "pfun-cma-engine",
   "private": true,
   "type": "module",
   "scripts": {
