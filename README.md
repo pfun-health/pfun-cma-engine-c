@@ -11,7 +11,7 @@ _Numerical engine for the [PFun CMA Model](https://github.com/pfun-health/pfun-c
 
 - `src/` — core C model implementation
 - `pfun_cma_engine/` — Python bindings and packaged shared library
-- `demos/` — interactive C demo plus Python scenario demos and the `scenariogen` scenario-buffer package (`demos/python/scenariogen/`)
+- `demos/` — interactive C demo, Python and TypeScript scenario demos, and the `scenariogen` scenario-buffer package (`demos/python/scenariogen/`)
 - `docs/` — build notes and tracked demo outputs
 - `tests/` — pytest and LLVM validation fixtures
 - `tools/` — developer utilities
@@ -49,6 +49,23 @@ $ uv run python demos/python/demo.py \
 # 'evening-party'
 $ uv run python demos/python/demo.py \
     --scenario evening-party
+```
+
+### TypeScript demo output
+
+The TypeScript renderer uses the Python demo's JSON output as its engine bridge,
+then formats the results as Markdown tables and ASCII charts. It requires Node.js
+22.6+ (native TypeScript type stripping) and the Python demo environment.
+
+```sh
+$ make demo-ts-output
+```
+
+To run a different scenario or point count directly:
+
+```sh
+$ node --experimental-strip-types demos/typescript/demo.ts \
+    --python .venv/bin/python --scenario morning-run --pts 97
 ```
 
 ### Interactive C demo

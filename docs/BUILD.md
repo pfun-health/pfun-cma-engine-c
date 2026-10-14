@@ -9,6 +9,7 @@ Instructions for building the C library, Python package, and running demos.
 - **C compiler** (GCC, Clang, or MSVC)
 - **CMake** >= 3.14 (optional, alternative build)
 - **Python** >= 3.11 (for Python package and Python demos)
+- **Node.js** >= 22.6 (for the TypeScript demo renderer)
 - **uv** or pip (for Python package)
 - **DuckDB** >= 1.5 Python package (scenario buffer; installed via `uv sync --dev`)
 
@@ -94,6 +95,18 @@ uv run python demos/python/demo.py --scenario morning-run
 uv run python demos/python/demo.py --scenario evening-party
 ```
 
+### TypeScript demo output
+
+The TypeScript renderer gets model results from the Python demo's JSON mode and
+renders its own Markdown tables and ASCII charts. It requires the Python demo
+environment and Node.js 22.6 or newer; no npm dependencies are needed.
+
+```sh
+make demo-ts-output
+node --experimental-strip-types demos/typescript/demo.ts \
+  --python .venv/bin/python --scenario morning-run --pts 97
+```
+
 ### Interactive C demo
 
 ```sh
@@ -106,11 +119,13 @@ make demo
 ```sh
 make demo-py-output
 make demo-c-output
+make demo-ts-output
 make demo-morning-run
 make demo-evening-party
 ```
 
-Outputs are saved under `docs/demo_outputs/`.
+Outputs are saved under `docs/demo_outputs/`, including `DEMO_TS_OUTPUT.md` for
+the TypeScript renderer.
 
 ### Scenario database buffer
 
