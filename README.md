@@ -53,9 +53,10 @@ $ uv run python demos/python/demo.py \
 
 ### TypeScript demo output
 
-The TypeScript renderer uses the Python demo's JSON output as its engine bridge,
-then formats the results as Markdown tables and ASCII charts. It requires Node.js
-22.6+ (native TypeScript type stripping) and the Python demo environment.
+The TypeScript renderer calls `run_cma_model` in the compiled shared library
+directly through Koffi, then formats the results as Markdown tables and ASCII
+charts. It requires Node.js 22.6+ (native TypeScript type stripping), npm, and
+the C shared library; it does not run the Python demo.
 
 ```sh
 $ make demo-ts-output
@@ -65,8 +66,10 @@ To run a different scenario or point count directly:
 
 ```sh
 $ node --experimental-strip-types demos/typescript/demo.ts \
-    --python .venv/bin/python --scenario morning-run --pts 97
+    --scenario morning-run --pts 97
 ```
+
+Set `PFUN_CMA_ENGINE_LIB` to use a shared library at a non-default path.
 
 ### Interactive C demo
 

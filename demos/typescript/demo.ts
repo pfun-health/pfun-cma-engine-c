@@ -1,39 +1,87 @@
-import { spawnSync } from "node:child_process";
+import koffi from "koffi";
 import { mkdirSync, writeFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
+import { fileURLToPath } from "node:url";
 
-type DemoData = {
+type Scenario = {
   title: string;
   summary: string;
   meals: number[];
-  meal_widths: number[];
-  activity_pulses: number[][];
-  activity_enabled: boolean;
-  activity_params: Record<string, number>;
-  columns: Record<string, number[]>;
-  g: number[][];
+  mealWidths: number[];
+  pulses: [number, number, number][];
+  activityParams: Record<string, number>;
 };
 
 type Options = {
-  python: string;
   scenario: string;
   pts: number;
   save?: string;
 };
 
+const scenarios: Record<string, Scenario> = {
+  baseline: {
+    title: "Baseline circadian + meals",
+    summary:
+      "Reference day with breakfast, lunch, and dinner and no scheduled activity.",
+    meals: [7, 11, 17.5],
+    mealWidths: [1, 1, 1],
+    pulses: [],
+    activityParams: {
+      k_A: 5,
+      A_thresh: 0.3,
+      gamma_A: 0.15,
+      kappa_A: 0.5,
+      beta_A: 0.2,
+      eta_A: 0.4,
+      tau_A: 2,
+    },
+  },
+  "morning-run": {
+    title: "Morning run",
+    summary:
+      "Moderate aerobic run before breakfast with residual insulin sensitization through the morning.",
+    meals: [8, 12.5, 18.5],
+    mealWidths: [0.9, 1, 1.1],
+    pulses: [[6.75, 0.55, 0.55]],
+    activityParams: {
+      k_A: 5,
+      A_thresh: 0.3,
+      gamma_A: 0.18,
+      kappa_A: 0.5,
+      beta_A: 0.15,
+      eta_A: 0.55,
+      tau_A: 3,
+    },
+  },
+  "evening-party": {
+    title: "Evening meal + party",
+    summary:
+      "Later dinner followed by an immediate short walk and a longer block of light-to-moderate dancing.",
+    meals: [7.5, 12.5, 19],
+    mealWidths: [0.9, 1, 1.4],
+    pulses: [
+      [19.35, 0.2, 0.22],
+      [21.1, 0.9, 0.34],
+    ],
+    activityParams: {
+      k_A: 5,
+      A_thresh: 0.3,
+      gamma_A: 0.12,
+      kappa_A: 0.5,
+      beta_A: 0.08,
+      eta_A: 0.3,
+      tau_A: 2,
+    },
+  },
+};
+
 function parseArgs(args: string[]): Options {
-  const options: Options = {
-    python: "python3",
-    scenario: "baseline",
-    pts: 97,
-  };
+  const options: Options = { scenario: "baseline", pts: 97 };
 
   for (let index = 0; index < args.length; index += 1) {
     const arg = args[index];
     if (arg === "--help" || arg === "-h") {
-      console.log(
-        "Usage: demo.ts [--python FILE] [--scenario SLUG] [--pts N] [--save FILE]",
-      );
+      console.log("Usage: demo.ts [--scenario SLUG] [--pts N] [--save FILE]");
       process.exit(0);
     }
 
@@ -41,8 +89,7 @@ function parseArgs(args: string[]): Options {
     if (!value || value.startsWith("--")) {
       throw new Error(`Missing value for ${arg}`);
     }
-    if (arg === "--python") options.python = value;
-    else if (arg === "--scenario") options.scenario = value;
+    if (arg === "--scenario") options.scenario = value;
     else if (arg === "--pts") {
       options.pts = Number(value);
       if (!Number.isInteger(options.pts) || options.pts < 2) {
@@ -70,8 +117,8 @@ function chart(
   markers: string[] = ["*"],
 ): string {
   const values = series.flat();
-  let min = Math.min(...values);
-  let max = Math.max(...values);
+  const min = Math.min(...values);
+  const max = Math.max(...values);
   const span = max - min || 1;
   const width = 60;
   const height = 12;
@@ -99,31 +146,36 @@ function chart(
   return `\`\`\`text\n${lines.join("\n")}\n\`\`\``;
 }
 
-function render(data: DemoData): string {
-  const names = Object.keys(data.columns);
-  const time = data.columns.t;
+function render(
+  scenario: Scenario,
+  columns: Record<string, number[]>,
+  mealComponents: number[][],
+): string {
+  const names = Object.keys(columns);
+  const time = columns.t;
   const table = [
     `| ${names.join(" | ")} |`,
     `| ${names.map(() => "---:").join(" | ")} |`,
     ...time.map((_, row) =>
-      `| ${names.map((name) => number(data.columns[name][row])).join(" | ")} |`,
+      `| ${names.map((name) => number(columns[name][row])).join(" | ")} |`,
     ),
   ];
-  const activity = data.activity_enabled
-    ? `enabled; pulses: ${JSON.stringify(data.activity_pulses)}`
-    : "disabled";
+  const activity =
+    scenario.pulses.length === 0
+      ? "disabled"
+      : `enabled; pulses: ${JSON.stringify(scenario.pulses)}`;
 
   return [
-    `# TypeScript demo: ${data.title}`,
+    `# TypeScript demo: ${scenario.title}`,
     "",
-    data.summary,
+    scenario.summary,
     "",
     "## Scenario inputs",
     "",
-    `- meals (h): ${JSON.stringify(data.meals)}`,
-    `- meal widths (h): ${JSON.stringify(data.meal_widths)}`,
+    `- meals (h): ${JSON.stringify(scenario.meals)}`,
+    `- meal widths (h): ${JSON.stringify(scenario.mealWidths)}`,
     `- activity: ${activity}`,
-    `- activity parameters: ${Object.entries(data.activity_params)
+    `- activity parameters: ${Object.entries(scenario.activityParams)
       .map(([key, value]) => `${key}=${number(value)}`)
       .join(", ")}`,
     "",
@@ -133,27 +185,103 @@ function render(data: DemoData): string {
     "",
     "## ASCII charts",
     "",
-    chart("G vs t", time, [data.columns.G]),
+    chart("G vs t", time, [columns.G]),
     "",
-    chart("g vs t (per-meal rows)", time, data.g, ["#", "*", "+"]),
+    chart("g vs t (per-meal rows)", time, mealComponents, ["#", "*", "+"]),
     "",
   ].join("\n");
 }
 
 function main(): void {
   const options = parseArgs(process.argv.slice(2));
-  const result = spawnSync(
-    options.python,
-    ["demos/python/demo.py", "--json", "--scenario", options.scenario, "--pts", String(options.pts)],
-    { encoding: "utf8", maxBuffer: 32 * 1024 * 1024 },
-  );
-  if (result.error) throw result.error;
-  if (result.status !== 0) {
-    process.stderr.write(result.stderr);
-    process.exit(result.status ?? 1);
+  const scenario = scenarios[options.scenario];
+  if (!scenario) {
+    throw new Error(
+      `Unknown scenario "${options.scenario}". Choose from: ${Object.keys(scenarios).join(", ")}`,
+    );
   }
 
-  const output = render(JSON.parse(result.stdout) as DemoData);
+  const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), "../..");
+  const libraryPath =
+    process.env.PFUN_CMA_ENGINE_LIB ??
+    resolve(repoRoot, "pfun_cma_engine/libpfun_cma_engine.so");
+  const library = koffi.load(libraryPath);
+  const runCmaModel = library.func(
+    "void run_cma_model(const double *t, int N, double d, double taup, double taug_val, const double *taug_vec, double B, double Cm, double toff, const double *tM, int n_meals, int *seed, double eps, const double *A_raw, double k_A, double A_thresh, double gamma_A, double kappa_A, double beta_A, double eta_A, double tau_A, double *out_L, double *out_m, double *out_c, double *out_c_mod, double *out_A, double *out_a, double *out_I_S, double *out_I_E, double *out_I_E_eff, double *out_s_A, double *out_G, double *out_g)",
+  );
+
+  const pointCount = options.pts;
+  const meals = Float64Array.from(scenario.meals);
+  const mealWidths = Float64Array.from(scenario.mealWidths);
+  const time = Float64Array.from(
+    { length: pointCount },
+    (_, index) => (24 * index) / (pointCount - 1),
+  );
+  const activity =
+    scenario.pulses.length === 0
+      ? null
+      : Float64Array.from(time, (t) =>
+          Math.min(
+            1,
+            Math.max(
+              0,
+              scenario.pulses.reduce(
+                (sum, [center, width, amplitude]) =>
+                  sum + amplitude * Math.exp(-(((t - center) / width) ** 2)),
+                0,
+              ),
+            ),
+          ),
+        );
+  const outputs = Array.from({ length: 11 }, () => new Float64Array(pointCount));
+  outputs.push(new Float64Array(pointCount * meals.length));
+
+  runCmaModel(
+    time,
+    pointCount,
+    1,
+    1.2,
+    scenario.mealWidths.reduce((sum, width) => sum + width, 0) /
+      scenario.mealWidths.length,
+    mealWidths,
+    0.05,
+    0,
+    0,
+    meals,
+    meals.length,
+    null,
+    1e-18,
+    activity,
+    scenario.activityParams.k_A,
+    scenario.activityParams.A_thresh,
+    scenario.activityParams.gamma_A,
+    scenario.activityParams.kappa_A,
+    scenario.activityParams.beta_A,
+    scenario.activityParams.eta_A,
+    scenario.activityParams.tau_A,
+    ...outputs,
+  );
+
+  const columns: Record<string, number[]> = {
+    G: Array.from(outputs[10]),
+    I_E: Array.from(outputs[7]),
+    I_E_eff: Array.from(outputs[8]),
+    L: Array.from(outputs[0]),
+    m: Array.from(outputs[1]),
+    c: Array.from(outputs[2]),
+    c_mod: Array.from(outputs[3]),
+    A: Array.from(outputs[4]),
+    s_A: Array.from(outputs[9]),
+    a: Array.from(outputs[5]),
+    I_S: Array.from(outputs[6]),
+  };
+  columns.t = Array.from(time);
+  const mealComponents = Array.from({ length: meals.length }, (_, mealIndex) =>
+    Array.from(
+      outputs[11].subarray(mealIndex * pointCount, (mealIndex + 1) * pointCount),
+    ),
+  );
+  const output = render(scenario, columns, mealComponents);
   process.stdout.write(output);
   if (options.save) {
     const path = resolve(options.save);

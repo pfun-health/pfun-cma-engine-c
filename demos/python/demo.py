@@ -4,7 +4,6 @@ from __future__ import annotations
 import argparse
 import contextlib
 import io
-import json
 import sys
 from pathlib import Path
 
@@ -159,43 +158,10 @@ def main(argv: list[str] | None = None) -> None:
     )
     parser.add_argument("--save", metavar="FILE", default=None)
     parser.add_argument("--skip-docstring", action="store_true")
-    parser.add_argument(
-        "--json", action="store_true", help="emit scenario results as JSON"
-    )
     args = parser.parse_args(argv)
 
     t = np.linspace(0, 24, args.pts)
     defn = SCENARIOS[args.scenario]
-
-    if args.json:
-        df, g, kwargs = compute_as_dataframe(defn, t)
-        json.dump(
-            {
-                "title": defn.title,
-                "summary": defn.summary,
-                "meals": list(defn.tM),
-                "meal_widths": list(defn.taug_vec),
-                "activity_pulses": list(defn.pulses),
-                "activity_enabled": kwargs["A_raw"] is not None,
-                "activity_params": {
-                    "k_A": defn.k_A,
-                    "A_thresh": defn.A_thresh,
-                    "gamma_A": defn.gamma_A,
-                    "kappa_A": defn.kappa_A,
-                    "beta_A": defn.beta_A,
-                    "eta_A": defn.eta_A,
-                    "tau_A": defn.tau_A,
-                },
-                "columns": {
-                    name: [float(value) for value in values]
-                    for name, values in df.to_dict(orient="list").items()
-                },
-                "g": [[float(value) for value in meal] for meal in g],
-            },
-            sys.stdout,
-        )
-        sys.stdout.write("\n")
-        return
 
     buf = io.StringIO()
     with contextlib.redirect_stdout(buf):

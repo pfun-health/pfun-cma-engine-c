@@ -9,7 +9,7 @@ CXXFLAGS := -Wall -Wextra -O2 -std=c++11
 LDFLAGS := -lm
 
 # Python interpreter for demo scripts (prefer project venv)
-PYTHON := $(shell test -x .venv/bin/python && echo .venv/bin/python || ( uv venv && echo .venv/bin/python ) )
+PYTHON := $(if $(wildcard .venv/bin/python),.venv/bin/python,$(if $(shell command -v uv 2>/dev/null),uv run python,python3))
 
 # Nuklear
 NUKLEAR_DIR := third_party/nuklear
@@ -97,7 +97,7 @@ python-setup:  ## Setup python environment using uv
 	. ./.venv/bin/activate
 
 # Capture demo session output to markdown
-.PHONY: demo-py-output demo-c-output demo-ts-output demo-morning-run demo-evening-party outputs
+.PHONY: demo-py-output demo-c-output demo-ts-output demo-morning-run demo-evening-party outputs npm-setup
 outputs: demo-py-output demo-c-output demo-ts-output demo-morning-run demo-evening-party  ## Capture demo session output to markdown
 
 .PHONY: demo-py-output
@@ -109,8 +109,12 @@ demo-c-output: demo  ## Run the C-based demo (default settings)
 	$(BUILD_DIR)/demo --ascii --save $(DEMO_OUTPUT_DIR)/DEMO_C_OUTPUT.md
 
 .PHONY: demo-ts-output
-demo-ts-output: all python-setup  ## Run the TypeScript demo renderer (default settings)
-	node --experimental-strip-types $(DEMO_TS_DIR)/demo.ts --python .venv/bin/python --save $(DEMO_OUTPUT_DIR)/DEMO_TS_OUTPUT.md
+demo-ts-output: all npm-setup  ## Run the TypeScript demo against the compiled C engine
+	node --experimental-strip-types $(DEMO_TS_DIR)/demo.ts --save $(DEMO_OUTPUT_DIR)/DEMO_TS_OUTPUT.md
+
+.PHONY: npm-setup
+npm-setup:  ## Install TypeScript demo dependencies
+	npm ci
 
 .PHONY: demo-morning-run
 demo-morning-run:  ## Generate a demo scenario to simulate a "morning run" (utilizes metabolic activity parameters)

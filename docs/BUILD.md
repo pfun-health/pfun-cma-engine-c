@@ -97,15 +97,17 @@ uv run python demos/python/demo.py --scenario evening-party
 
 ### TypeScript demo output
 
-The TypeScript renderer gets model results from the Python demo's JSON mode and
-renders its own Markdown tables and ASCII charts. It requires the Python demo
-environment and Node.js 22.6 or newer; no npm dependencies are needed.
+The TypeScript renderer calls `run_cma_model` in the compiled shared library
+directly through Koffi and renders Markdown tables and ASCII charts. It requires
+Node.js 22.6 or newer and npm, but not the Python demo environment.
 
 ```sh
 make demo-ts-output
 node --experimental-strip-types demos/typescript/demo.ts \
-  --python .venv/bin/python --scenario morning-run --pts 97
+  --scenario morning-run --pts 97
 ```
+
+Set `PFUN_CMA_ENGINE_LIB` to use a shared library at a non-default path.
 
 ### Interactive C demo
 
