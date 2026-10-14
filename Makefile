@@ -69,7 +69,7 @@ $(BUILD_DIR)/%.o: $(SRC_DIR)/%.c $(HEADERS)
 .PHONY: clean
 clean:
 	@echo "cleaning any existing build outputs..."
-	@rm -rf .venv $(BUILD_DIR) $(LIB_DIR)/*.so $(LIB_DIR)/*.a $(LIB_DIR)/*.o
+	@rm -rf .venv $(LIB_DIR)_c.egg-info $(BUILD_DIR) $(LIB_DIR)/*.so $(LIB_DIR)/*.a $(LIB_DIR)/*.o
 
 # Rebuild from scratch
 .PHONY: rebuild
