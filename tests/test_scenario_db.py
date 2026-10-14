@@ -17,7 +17,7 @@ import pytest
 _here = os.path.dirname(os.path.abspath(__file__))
 for _p in (
     os.path.dirname(_here),
-    os.path.join(os.path.dirname(_here), "demos", "python"),
+    os.path.join(os.path.dirname(_here), "demos", "py"),
 ):
     if _p not in sys.path:
         sys.path.insert(0, _p)

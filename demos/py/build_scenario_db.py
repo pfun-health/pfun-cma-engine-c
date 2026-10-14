@@ -3,7 +3,7 @@
 
 Usage
 -----
-    python demos/python/build_scenario_db.py [--db data/scenario_buffer.sqlite]
+    python demos/py/build_scenario_db.py [--db data/scenario_buffer.sqlite]
                                              [--tier full|core]
                                              [--pts 193]
                                              [--seed 42]
@@ -27,7 +27,7 @@ import sys
 
 
 def _setup_sys_path() -> None:
-    here = os.path.dirname(os.path.abspath(__file__))          # demos/python
+    here = os.path.dirname(os.path.abspath(__file__))          # demos/py
     root = os.path.dirname(os.path.dirname(here))              # repo root
     for p in (root, here):
         if p not in sys.path:

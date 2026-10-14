@@ -22,7 +22,7 @@ IR_OUTPUT = os.path.join(OUTPUT_DIR, "pfun_cma_engine.ll")
 BC_OUTPUT = os.path.join(OUTPUT_DIR, "pfun_cma_engine.bc")
 OPT_LEVEL = "-O2"
 C_STANDARD = "-std=c99"
-INCLUDE_DIRS = ["-I", "src"]
+INCLUDE_DIRS = ["-I", "include", "-I", "src"]
 # Clang flags that are always used.
 BASE_CLANG_FLAGS = [
     "-S",

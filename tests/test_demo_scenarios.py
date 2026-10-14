@@ -5,7 +5,7 @@ import numpy as np
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(REPO_ROOT))
-sys.path.insert(0, str(REPO_ROOT / 'demos' / 'python'))
+sys.path.insert(0, str(REPO_ROOT / 'demos' / 'py'))
 
 from pfun_cma_engine.pfun_cma_engine import run_cma_engine_c
 from scenarios import EVENING_PARTY_SCENARIO, MORNING_RUN_SCENARIO, scenario_kwargs

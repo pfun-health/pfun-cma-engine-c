@@ -2,7 +2,7 @@
   pfun_cma_engine.c: Implementation of the PFun CMA Model Engine
 */
 
-#include "pfun_cma_engine.h"
+#include "pfun_cma_engine/pfun_cma_engine.h"
 #include <float.h>
 #include <math.h>
 #include <stdlib.h>

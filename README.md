@@ -10,8 +10,9 @@ _Numerical engine for the [PFun CMA Model](https://github.com/pfun-health/pfun-c
 ## Repository layout
 
 - `src/` — core C model implementation
-- `pfun_cma_engine/` — Python bindings and packaged shared library
-- `demos/` — interactive C demo, Python and TypeScript scenario demos, and the `scenariogen` scenario-buffer package (`demos/python/scenariogen/`)
+- `include/pfun_cma_engine/` — public C headers
+- `pfun_cma_engine/` — Python bindings and packaged shared library, with language-surface facade dirs (`py/`, `ts/`, `c/`)
+- `demos/` — interactive C demo, Python and TypeScript scenario demos, and the `scenariogen` scenario-buffer package (`demos/py/scenariogen/`)
 - `docs/` — build notes and tracked demo outputs
 - `tests/` — pytest and LLVM validation fixtures
 - `tools/` — developer utilities
@@ -42,12 +43,12 @@ $ make precision-report
 
 ```sh
 # Run the baseline demo
-$ uv run python demos/python/demo.py
+$ uv run python demos/py/demo.py
 # 'morning-run' scenario
-$ uv run python demos/python/demo.py \
+$ uv run python demos/py/demo.py \
     --scenario morning-run
 # 'evening-party'
-$ uv run python demos/python/demo.py \
+$ uv run python demos/py/demo.py \
     --scenario evening-party
 ```
 
@@ -66,7 +67,7 @@ To run a different scenario or point count directly:
 
 ```sh
 $ make all && npm ci
-$ node --experimental-strip-types demos/typescript/demo.ts \
+$ node --experimental-strip-types demos/ts/demo.ts \
     --scenario morning-run --pts 97
 ```
 
@@ -90,11 +91,11 @@ Build and query:
 
 ```sh
 # Build (precompute) the scenario database
-$ uv run python demos/python/build_scenario_db.py \
+$ uv run python demos/py/build_scenario_db.py \
     --db data/scenario_buffer.sqlite
 
 # Query the database, return a specific scenario
-$ uv run python demos/python/query_scenario_db.py \
+$ uv run python demos/py/query_scenario_db.py \
     --db data/scenario_buffer.sqlite \
     --mood stressed --hunger starving \
     --sleep restful \
@@ -116,4 +117,4 @@ $ make demo-scenario-embeddings
 query> stressed and starving after a bad night, sitting at a desk
 ```
 
-Dependencies live in the optional `demo` dependency group (`uv sync --group demo`). For a single non-interactive query: `uv run --group demo python demos/python/scenario_embeddings_demo.py --query "..."`.
+Dependencies live in the optional `demo` dependency group (`uv sync --group demo`). For a single non-interactive query: `uv run --group demo python demos/py/scenario_embeddings_demo.py --query "..."`.

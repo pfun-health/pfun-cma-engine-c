@@ -381,7 +381,7 @@ def engine_run(params: dict, t) -> dict:
     """Run the CMA engine for a resolved parameter dict, returning the raw
     output dict plus a ``summary`` key.
 
-    Requires the repo root (``pfun_cma_engine``) and ``demos/python``
+    Requires the repo root (``pfun_cma_engine``) and ``demos/py``
     (``scenarios``) on ``sys.path`` - the CLI and tests arrange this.
     """
     import numpy as np

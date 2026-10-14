@@ -54,7 +54,7 @@ Verified examples from the buffer's `parameter_overrides`:
 | `meal_schedule → tM, taug_vec, B` | late_dinner | `tM` [7, 11, 20.5], `taug_vec` [1, 1, 1.2] | zecevic2023timing, bandin2014meal |
 
 The full machine-readable registry lives in
-`demos/python/scenariogen/mapping.py::OVERRIDES` and is seeded verbatim into
+`demos/py/scenariogen/mapping.py::OVERRIDES` and is seeded verbatim into
 `parameter_overrides` (with `rationale` and `ref_id` for every row).
 
 ## Engine semantics: what the buffer contains
@@ -107,13 +107,13 @@ reporting how many descriptors had to default.
 
 ```sh
 # full buffer (768 × 193 points) — this is the default artifact
-.venv/bin/python demos/python/build_scenario_db.py --db data/scenario_buffer.sqlite
+.venv/bin/python demos/py/build_scenario_db.py --db data/scenario_buffer.sqlite
 
 # small core buffer (15 × 97 points) for tests/CI
-.venv/bin/python demos/python/build_scenario_db.py --db /tmp/scenario_core.sqlite --tier core
+.venv/bin/python demos/py/build_scenario_db.py --db /tmp/scenario_core.sqlite --tier core
 
 # query: exact + nearest match, summary, timecourse, references
-.venv/bin/python demos/python/query_scenario_db.py --db data/scenario_buffer.sqlite \
+.venv/bin/python demos/py/query_scenario_db.py --db data/scenario_buffer.sqlite \
   --mood stressed --hunger starving --sleep restful --activity sedentary --meal-schedule standard \
   --summary-only --timecourse --references
 ```

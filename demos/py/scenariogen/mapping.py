@@ -42,7 +42,7 @@ from scenariogen.descriptors import (
 # calibration (baseline) free-parameter set
 # ---------------------------------------------------------------------------
 
-# Matches the 'baseline' scenario in demos/python/scenarios.py plus engine
+# Matches the 'baseline' scenario in demos/py/scenarios.py plus engine
 # defaults.  `pulses` is *not* an engine argument; precompute converts it to
 # the activity signal A_raw via build_activity_signal().
 CALIBRATION_PARAMS: dict = {

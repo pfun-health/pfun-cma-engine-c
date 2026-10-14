@@ -9,7 +9,7 @@ dot product).  bge models are retrieval-tuned: queries get an instruction
 prefix, documents do not.
 
 Usage:
-    python demos/python/scenario_embeddings_demo.py [--db PATH] [--top-k N]
+    python demos/py/scenario_embeddings_demo.py [--db PATH] [--top-k N]
         [--model NAME] [--query TEXT]   # --query runs once, non-interactive
 """
 

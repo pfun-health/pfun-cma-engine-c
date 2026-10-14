@@ -3,7 +3,7 @@
 
 Usage
 -----
-    python demos/python/query_scenario_db.py --mood stressed --hunger hungry
+    python demos/py/query_scenario_db.py --mood stressed --hunger hungry
                                             [--sleep restful]
                                             [--activity light]
                                             [--meal-schedule standard]

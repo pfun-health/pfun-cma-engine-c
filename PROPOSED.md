@@ -27,7 +27,7 @@ This document consolidates the implementation roadmap and the approved TclUI fro
 | **LLVM IR generation** | COMPLETE | 100% | `convert-to-llvm.py` → `build/pfun_cma_engine.{ll,bc,o}` |
 | **LLVM testing infrastructure** | PARTIAL | Tier 1 | `make test-llvm`, `check-ir`, `ir-metrics`; Tiers 2–3 deferred to Q4 |
 | **TclUI frontend** | PLANNED | 0% | Execute §8 phases; spec frozen in `TCLUI_PRD.md` |
-| **Scenario database buffer** (`demos/python/scenariogen`) | COMPLETE | 100% | 768-scenario SQLite buffer + refs registry; `docs/SCENARIO_DB.md` |
+| **Scenario database buffer** (`demos/py/scenariogen`) | COMPLETE | 100% | 768-scenario SQLite buffer + refs registry; `docs/SCENARIO_DB.md` |
 
 ### High-Priority Action Items (This Sprint)
 

@@ -21,8 +21,8 @@ SRC_DIR := src
 BUILD_DIR := build
 LIB_DIR := pfun_cma_engine
 DEMO_C_DIR := demos/c
-DEMO_PY_DIR := demos/python
-DEMO_TS_DIR := demos/typescript
+DEMO_PY_DIR := demos/py
+DEMO_TS_DIR := demos/ts
 DOCS_DIR := docs
 DEMO_OUTPUT_DIR := $(DOCS_DIR)/demo_outputs
 INCLUDE_DIR := include
@@ -36,7 +36,7 @@ TARGET := $(LIB_DIR)/libpfun_cma_engine.so
 STATIC_TARGET := $(LIB_DIR)/libpfun_cma_engine.a
 
 # Header files
-HEADERS := $(wildcard $(SRC_DIR)/*.h)
+HEADERS := $(wildcard $(INCLUDE_DIR)/pfun_cma_engine/*.h) $(wildcard $(SRC_DIR)/*.h)
 
 # Default target
 .DEFAULT_GOAL := help
@@ -63,7 +63,7 @@ $(STATIC_TARGET): directories $(OBJECTS)
 
 # Compile source files
 $(BUILD_DIR)/%.o: $(SRC_DIR)/%.c $(HEADERS)
-	$(CC) $(CFLAGS) -fPIC -I$(SRC_DIR) -c $< -o $@
+	$(CC) $(CFLAGS) -fPIC -I$(INCLUDE_DIR) -I$(SRC_DIR) -c $< -o $@
 
 # Clean build artifacts
 .PHONY: clean
@@ -127,9 +127,9 @@ demo-evening-party:  ## Generate an "evening party" scenario.
 .PHONY: demo
 demo: $(BUILD_DIR)/demo  ## Interactive/ASCII demo (Nuklear TTY UI + terminal backend)
 
-$(BUILD_DIR)/demo: $(DEMO_C_DIR)/demo.c $(DEMO_C_DIR)/term.c $(DEMO_C_DIR)/term.h $(SRC_DIR)/pfun_cma_engine.h $(NUKLEAR_HEADER) | directories
+$(BUILD_DIR)/demo: $(DEMO_C_DIR)/demo.c $(DEMO_C_DIR)/term.c $(DEMO_C_DIR)/term.h $(INCLUDE_DIR)/pfun_cma_engine/pfun_cma_engine.h $(NUKLEAR_HEADER) | directories
 	$(CC) $(CFLAGS) -D_DEFAULT_SOURCE -Wno-unused-function -Wno-unused-parameter \
-	  -I$(SRC_DIR) -I$(DEMO_C_DIR) -I$(NUKLEAR_DIR) -o $@ $(DEMO_C_DIR)/demo.c $(DEMO_C_DIR)/term.c $(SRC_DIR)/pfun_cma_engine.c $(LDFLAGS)
+	  -I$(INCLUDE_DIR) -I$(SRC_DIR) -I$(DEMO_C_DIR) -I$(NUKLEAR_DIR) -o $@ $(DEMO_C_DIR)/demo.c $(DEMO_C_DIR)/term.c $(SRC_DIR)/pfun_cma_engine.c $(LDFLAGS)
 
 # Fetch the pinned nuklear.h single-header (idempotent)
 .PHONY: vendor-nuklear
@@ -189,7 +189,7 @@ llvm-verify: $(LLVM_BC)
 .PHONY: lto-test
 lto-test: $(LLVM_BC) $(BUILD_DIR)/output_gcc.txt
 	@echo "=== LTO compilation ==="
-	clang -flto -O2 -I$(SRC_DIR) -o $(BUILD_DIR)/test_lto tests/test_scaling.c $(LLVM_BC) -lm
+	clang -flto -O2 -I$(INCLUDE_DIR) -I$(SRC_DIR) -o $(BUILD_DIR)/test_lto tests/test_scaling.c $(LLVM_BC) -lm
 	@echo "=== Running LTO binary ==="
 	$(BUILD_DIR)/test_lto > $(BUILD_DIR)/output_lto.txt
 	@echo "=== Numerical diff vs GCC reference ==="
@@ -201,9 +201,9 @@ lto-test: $(LLVM_BC) $(BUILD_DIR)/output_gcc.txt
 test-llvm: $(LLVM_IR)
 	@mkdir -p $(BUILD_DIR)
 	@echo "=== Compiling GCC reference binary ==="
-	$(CC) -I$(SRC_DIR) -o $(BUILD_DIR)/test_scaling_gcc tests/test_scaling.c $(SRC_DIR)/pfun_cma_engine.c -lm
+	$(CC) -I$(INCLUDE_DIR) -I$(SRC_DIR) -o $(BUILD_DIR)/test_scaling_gcc tests/test_scaling.c $(SRC_DIR)/pfun_cma_engine.c -lm
 	@echo "=== Compiling LLVM IR to native binary ==="
-	clang -I$(SRC_DIR) -o $(BUILD_DIR)/test_scaling_llvm tests/test_scaling.c $(LLVM_IR) -lm
+	clang -I$(INCLUDE_DIR) -I$(SRC_DIR) -o $(BUILD_DIR)/test_scaling_llvm tests/test_scaling.c $(LLVM_IR) -lm
 	@echo "=== Running GCC binary ==="
 	$(BUILD_DIR)/test_scaling_gcc > $(BUILD_DIR)/output_gcc.txt
 	@echo "=== Running LLVM binary ==="

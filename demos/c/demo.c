@@ -27,7 +27,7 @@
 
 #include <poll.h>
 
-#include "pfun_cma_engine.h"
+#include "pfun_cma_engine/pfun_cma_engine.h"
 #include "term.h"
 
 /** Maximum number of simulation time points supported by results buffers. */

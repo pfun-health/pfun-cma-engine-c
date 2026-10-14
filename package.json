@@ -6,7 +6,7 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "demo": "node --experimental-strip-types demos/typescript/demo.ts"
+    "demo": "node --experimental-strip-types demos/ts/demo.ts"
   },
   "allowScripts": {
     "koffi@3.3.3": true

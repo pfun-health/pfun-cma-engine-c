@@ -125,8 +125,9 @@ Follow this basic structure for documentation:
 ## Repository layout
 
 - `src/` — core C model implementation
-- `pfun_cma_engine/` — Python bindings and packaged shared library
-- `demos/` — interactive C demo plus Python scenario demos and the `scenariogen` scenario-buffer package (`demos/python/scenariogen/`)
+- `include/pfun_cma_engine/` — public C headers
+- `pfun_cma_engine/` — Python bindings and packaged shared library, with language-surface facade dirs (`py/`, `ts/`, `c/`)
+- `demos/` — interactive C demo plus Python scenario demos and the `scenariogen` scenario-buffer package (`demos/py/scenariogen/`)
 - `docs/` — build notes and tracked demo outputs
 - `tests/` — pytest and LLVM validation fixtures
 - `tools/` — developer utilities

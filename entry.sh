@@ -18,7 +18,7 @@ run_demo() {
 	local SCENARIO="${1:-baseline}"
 	make clean
 	make demo-py-output
-	uv run python demos/python/demo.py --scenario "${SCENARIO}"
+	uv run python demos/py/demo.py --scenario "${SCENARIO}"
 }
 
 if [ "$#" -eq 0 ]; then

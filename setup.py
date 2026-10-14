@@ -7,8 +7,9 @@ and that the resulting shared library can be imported by the Python package.
 from pathlib import Path
 from setuptools import setup, Extension, find_packages
 
-# Get the absolute path to src directory for include paths
+# Get the absolute paths for include directories
 src_dir = Path("src").resolve()
+include_dir = Path("include").resolve()
 
 # Define the extension module
 # The extension will be built as pfun_cma_engine/libpfun_cma_engine.so
@@ -17,7 +18,7 @@ ext_modules = [
         "pfun_cma_engine.libpfun_cma_engine",
         sources=list(Path("src").glob("*.c")),
         extra_compile_args=["-O3", "-march=native"],
-        include_dirs=[str(src_dir), ],
+        include_dirs=[str(include_dir), str(src_dir)],
     )
 ]
 

@@ -90,9 +90,9 @@ pip install -e .       # editable install via pip
 ### Python demos
 
 ```sh
-uv run python demos/python/demo.py
-uv run python demos/python/demo.py --scenario morning-run
-uv run python demos/python/demo.py --scenario evening-party
+uv run python demos/py/demo.py
+uv run python demos/py/demo.py --scenario morning-run
+uv run python demos/py/demo.py --scenario evening-party
 ```
 
 ### TypeScript demo output
@@ -111,7 +111,7 @@ Or, after building the shared library and installing npm dependencies:
 
 ```sh
 make all && npm ci
-node --experimental-strip-types demos/typescript/demo.ts \
+node --experimental-strip-types demos/ts/demo.ts \
   --scenario morning-run --pts 97
 ```
 
@@ -141,13 +141,13 @@ the TypeScript renderer.
 
 ```sh
 # full buffer (768 scenarios x 193 points) -> data/scenario_buffer.sqlite
-.venv/bin/python demos/python/build_scenario_db.py --db data/scenario_buffer.sqlite
+.venv/bin/python demos/py/build_scenario_db.py --db data/scenario_buffer.sqlite
 
 # small core buffer (15 scenarios x 97 points) for fast tests/CI
-.venv/bin/python demos/python/build_scenario_db.py --db /tmp/scenario_core.sqlite --tier core
+.venv/bin/python demos/py/build_scenario_db.py --db /tmp/scenario_core.sqlite --tier core
 
 # query a scenario: exact + nearest match, summary, timecourse, references
-.venv/bin/python demos/python/query_scenario_db.py --db data/scenario_buffer.sqlite \
+.venv/bin/python demos/py/query_scenario_db.py --db data/scenario_buffer.sqlite \
   --mood stressed --hunger starving --sleep restful --activity sedentary --meal-schedule standard \
   --summary-only --timecourse --references
 ```
