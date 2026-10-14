@@ -161,7 +161,9 @@ _SCENARIO_EVIDENCE = {
 
 
 _SCENARIO_DATA = json.loads(
-    Path(__file__).with_name("scenarios.json").read_text(encoding="utf-8")
+    (Path(__file__).resolve().parents[1] / "scenarios.json").read_text(
+        encoding="utf-8"
+    )
 )
 
 
