@@ -1,15 +1,17 @@
 import koffi from "koffi";
-import { mkdirSync, writeFileSync } from "node:fs";
+import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
 type Scenario = {
+  slug: string;
   title: string;
   summary: string;
   meals: number[];
   mealWidths: number[];
   pulses: [number, number, number][];
   activityParams: Record<string, number>;
+  modelParams: Record<string, number>;
 };
 
 type Options = {
@@ -18,62 +20,11 @@ type Options = {
   save?: string;
 };
 
-const scenarios: Record<string, Scenario> = {
-  baseline: {
-    title: "Baseline circadian + meals",
-    summary:
-      "Reference day with breakfast, lunch, and dinner and no scheduled activity.",
-    meals: [7, 11, 17.5],
-    mealWidths: [1, 1, 1],
-    pulses: [],
-    activityParams: {
-      k_A: 5,
-      A_thresh: 0.3,
-      gamma_A: 0.15,
-      kappa_A: 0.5,
-      beta_A: 0.2,
-      eta_A: 0.4,
-      tau_A: 2,
-    },
-  },
-  "morning-run": {
-    title: "Morning run",
-    summary:
-      "Moderate aerobic run before breakfast with residual insulin sensitization through the morning.",
-    meals: [8, 12.5, 18.5],
-    mealWidths: [0.9, 1, 1.1],
-    pulses: [[6.75, 0.55, 0.55]],
-    activityParams: {
-      k_A: 5,
-      A_thresh: 0.3,
-      gamma_A: 0.18,
-      kappa_A: 0.5,
-      beta_A: 0.15,
-      eta_A: 0.55,
-      tau_A: 3,
-    },
-  },
-  "evening-party": {
-    title: "Evening meal + party",
-    summary:
-      "Later dinner followed by an immediate short walk and a longer block of light-to-moderate dancing.",
-    meals: [7.5, 12.5, 19],
-    mealWidths: [0.9, 1, 1.4],
-    pulses: [
-      [19.35, 0.2, 0.22],
-      [21.1, 0.9, 0.34],
-    ],
-    activityParams: {
-      k_A: 5,
-      A_thresh: 0.3,
-      gamma_A: 0.12,
-      kappa_A: 0.5,
-      beta_A: 0.08,
-      eta_A: 0.3,
-      tau_A: 2,
-    },
-  },
-};
+const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), "../..");
+const scenarios = JSON.parse(
+  readFileSync(resolve(repoRoot, "demos/scenarios.json"), "utf8"),
+) as Record<string, Scenario>;
+const MAX_POINTS = 768;
 
 function parseArgs(args: string[]): Options {
   const options: Options = { scenario: "baseline", pts: 97 };
@@ -81,7 +32,7 @@ function parseArgs(args: string[]): Options {
   for (let index = 0; index < args.length; index += 1) {
     const arg = args[index];
     if (arg === "--help" || arg === "-h") {
-      console.log("Usage: demo.ts [--scenario SLUG] [--pts N] [--save FILE]");
+      console.log("Usage: demo.ts [--scenario SLUG] [--pts N (2-768)] [--save FILE]");
       process.exit(0);
     }
 
@@ -92,8 +43,12 @@ function parseArgs(args: string[]): Options {
     if (arg === "--scenario") options.scenario = value;
     else if (arg === "--pts") {
       options.pts = Number(value);
-      if (!Number.isInteger(options.pts) || options.pts < 2) {
-        throw new Error("--pts must be an integer greater than or equal to 2");
+      if (
+        !Number.isInteger(options.pts) ||
+        options.pts < 2 ||
+        options.pts > MAX_POINTS
+      ) {
+        throw new Error("--pts must be an integer between 2 and 768");
       }
     } else if (arg === "--save") options.save = value;
     else throw new Error(`Unknown argument: ${arg}`);
@@ -116,9 +71,14 @@ function chart(
   series: number[][],
   markers: string[] = ["*"],
 ): string {
-  const values = series.flat();
-  const min = Math.min(...values);
-  const max = Math.max(...values);
+  let min = Infinity;
+  let max = -Infinity;
+  for (const line of series) {
+    for (const value of line) {
+      min = Math.min(min, value);
+      max = Math.max(max, value);
+    }
+  }
   const span = max - min || 1;
   const width = 60;
   const height = 12;
@@ -201,7 +161,6 @@ function main(): void {
     );
   }
 
-  const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), "../..");
   const libraryPath =
     process.env.PFUN_CMA_ENGINE_LIB ??
     resolve(repoRoot, "pfun_cma_engine/libpfun_cma_engine.so");
@@ -239,18 +198,18 @@ function main(): void {
   runCmaModel(
     time,
     pointCount,
-    1,
-    1.2,
+    scenario.modelParams.d,
+    scenario.modelParams.taup,
     scenario.mealWidths.reduce((sum, width) => sum + width, 0) /
       scenario.mealWidths.length,
     mealWidths,
-    0.05,
-    0,
-    0,
+    scenario.modelParams.B,
+    scenario.modelParams.Cm,
+    scenario.modelParams.toff,
     meals,
     meals.length,
     null,
-    1e-18,
+    scenario.modelParams.eps,
     activity,
     scenario.activityParams.k_A,
     scenario.activityParams.A_thresh,

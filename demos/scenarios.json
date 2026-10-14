@@ -1,0 +1,77 @@
+{
+  "baseline": {
+    "slug": "baseline",
+    "title": "Baseline circadian + meals",
+    "summary": "Reference day with breakfast, lunch, and dinner and no scheduled activity.",
+    "meals": [7, 11, 17.5],
+    "mealWidths": [1, 1, 1],
+    "pulses": [],
+    "activityParams": {
+      "k_A": 5,
+      "A_thresh": 0.3,
+      "gamma_A": 0.15,
+      "kappa_A": 0.5,
+      "beta_A": 0.2,
+      "eta_A": 0.4,
+      "tau_A": 2
+    },
+    "modelParams": {
+      "d": 1,
+      "taup": 1.2,
+      "B": 0.05,
+      "Cm": 0,
+      "toff": 0,
+      "eps": 1e-18
+    }
+  },
+  "morning-run": {
+    "slug": "morning-run",
+    "title": "Morning run",
+    "summary": "Moderate aerobic run before breakfast with residual insulin sensitization through the morning.",
+    "meals": [8, 12.5, 18.5],
+    "mealWidths": [0.9, 1, 1.1],
+    "pulses": [[6.75, 0.55, 0.55]],
+    "activityParams": {
+      "k_A": 5,
+      "A_thresh": 0.3,
+      "gamma_A": 0.18,
+      "kappa_A": 0.5,
+      "beta_A": 0.15,
+      "eta_A": 0.55,
+      "tau_A": 3
+    },
+    "modelParams": {
+      "d": 1,
+      "taup": 1.2,
+      "B": 0.05,
+      "Cm": 0,
+      "toff": 0,
+      "eps": 1e-18
+    }
+  },
+  "evening-party": {
+    "slug": "evening-party",
+    "title": "Evening meal + party",
+    "summary": "Later dinner followed by an immediate short walk and a longer block of light-to-moderate dancing.",
+    "meals": [7.5, 12.5, 19],
+    "mealWidths": [0.9, 1, 1.4],
+    "pulses": [[19.35, 0.2, 0.22], [21.1, 0.9, 0.34]],
+    "activityParams": {
+      "k_A": 5,
+      "A_thresh": 0.3,
+      "gamma_A": 0.12,
+      "kappa_A": 0.5,
+      "beta_A": 0.08,
+      "eta_A": 0.3,
+      "tau_A": 2
+    },
+    "modelParams": {
+      "d": 1,
+      "taup": 1.2,
+      "B": 0.05,
+      "Cm": 0,
+      "toff": 0,
+      "eps": 1e-18
+    }
+  }
+}
