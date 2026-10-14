@@ -129,6 +129,14 @@ Outputs are saved under `docs/demo_outputs/`.
 
 Design, schema, tiers, and physiology: [`docs/SCENARIO_DB.md`](SCENARIO_DB.md).
 
+### Embedding-based scenario search
+
+```sh
+make demo-scenario-embeddings   # builds the DB if needed, then starts an interactive query prompt
+```
+
+Uses `BAAI/bge-small-en-v1.5` (fastembed/ONNX, cosine similarity; queries get the BGE retrieval instruction prefix). Requires the `demo` dependency group (installed automatically by `uv run --group demo`) and network access on first run to download the model.
+
 ---
 
 ## Validation

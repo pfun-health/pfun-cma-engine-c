@@ -134,7 +134,7 @@ $(NUKLEAR_HEADER):
 
 SCENARIO_DB := data/scenario_buffer.sqlite
 
-.PHONY: scenario-db scenario-db-core query-demo test-scenariogen test-precision precision-report
+.PHONY: scenario-db scenario-db-core query-demo demo-scenario-embeddings test-scenariogen test-precision precision-report
 scenario-db-core:
 	$(PYTHON) $(DEMO_PY_DIR)/build_scenario_db.py --db /tmp/scenario_core.sqlite --tier core
 	@echo "Core buffer written to /tmp/scenario_core.sqlite (15 scenarios x 97 pts)"
@@ -147,6 +147,9 @@ query-demo: scenario-db  ## Query the default demo from the scenario database (a
 	$(PYTHON) $(DEMO_PY_DIR)/query_scenario_db.py --db $(SCENARIO_DB) \
 	  --mood stressed --hunger starving --sleep restful --activity sedentary \
 	  --meal-schedule standard --summary-only --timecourse --references
+
+demo-scenario-embeddings: scenario-db  ## Interactive semantic search over scenario DB (BGE embeddings + cosine similarity)
+	uv run --group demo python $(DEMO_PY_DIR)/scenario_embeddings_demo.py --db $(SCENARIO_DB)
 
 test-scenariogen:  ## Test scenario generation
 	$(PYTHON) -m pytest tests/test_scenariogen.py tests/test_scenario_db.py -q

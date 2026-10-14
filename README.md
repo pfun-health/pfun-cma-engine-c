@@ -85,3 +85,14 @@ $ uv run python demos/python/query_scenario_db.py \
 ```
 
 See [`docs/SCENARIO_DB.md`](docs/SCENARIO_DB.md) for the design, schema, tiers, and tests.
+
+### Semantic scenario search (embeddings demo)
+
+Embeds every scenario in the database (descriptor labels, physiological descriptions, glucose summary) with [`BAAI/bge-small-en-v1.5`](https://huggingface.co/BAAI/bge-small-en-v1.5) via `fastembed` (ONNX; no torch needed; ~130 MB, downloaded on first run) and opens an interactive prompt. Free-text queries are matched to the best scenario by cosine similarity.
+
+```sh
+$ make demo-scenario-embeddings
+query> stressed and starving after a bad night, sitting at a desk
+```
+
+Dependencies live in the optional `demo` dependency group (`uv sync --group demo`). For a single non-interactive query: `uv run --group demo python demos/python/scenario_embeddings_demo.py --query "..."`.
