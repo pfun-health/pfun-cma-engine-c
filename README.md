@@ -11,7 +11,7 @@ _Numerical engine for the [PFun CMA Model](https://github.com/pfun-health/pfun-c
 
 - `src/` — core C model implementation
 - `pfun_cma_engine/` — Python bindings and packaged shared library
-- `demos/` — interactive C demo plus Python scenario demos and the `scenariogen` scenario-buffer package (`demos/python/scenariogen/`)
+- `demos/` — interactive C demo, Python and TypeScript scenario demos, and the `scenariogen` scenario-buffer package (`demos/python/scenariogen/`)
 - `docs/` — build notes and tracked demo outputs
 - `tests/` — pytest and LLVM validation fixtures
 - `tools/` — developer utilities
@@ -50,6 +50,27 @@ $ uv run python demos/python/demo.py \
 $ uv run python demos/python/demo.py \
     --scenario evening-party
 ```
+
+### TypeScript demo output
+
+The TypeScript renderer calls `run_cma_model` in the compiled shared library
+directly through Koffi, then formats the results as Markdown tables and ASCII
+charts. It requires Node.js 22.6+ (native TypeScript type stripping), npm, and
+the C shared library; it does not run the Python demo.
+
+```sh
+$ make demo-ts-output
+```
+
+To run a different scenario or point count directly:
+
+```sh
+$ make all && npm ci
+$ node --experimental-strip-types demos/typescript/demo.ts \
+    --scenario morning-run --pts 97
+```
+
+Set `PFUN_CMA_ENGINE_LIB` to use a shared library at a non-default path.
 
 ### Interactive C demo
 

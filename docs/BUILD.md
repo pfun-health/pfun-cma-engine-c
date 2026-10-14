@@ -9,6 +9,7 @@ Instructions for building the C library, Python package, and running demos.
 - **C compiler** (GCC, Clang, or MSVC)
 - **CMake** >= 3.14 (optional, alternative build)
 - **Python** >= 3.11 (for Python package and Python demos)
+- **Node.js** >= 22.6 (for the TypeScript demo renderer)
 - **uv** or pip (for Python package)
 - **DuckDB** >= 1.5 Python package (scenario buffer; installed via `uv sync --dev`)
 
@@ -94,6 +95,26 @@ uv run python demos/python/demo.py --scenario morning-run
 uv run python demos/python/demo.py --scenario evening-party
 ```
 
+### TypeScript demo output
+
+The TypeScript renderer calls `run_cma_model` in the compiled shared library
+directly through Koffi and renders Markdown tables and ASCII charts. It requires
+Node.js 22.6 or newer and npm, but not the Python demo environment.
+
+```sh
+make demo-ts-output
+```
+
+Or, after building the shared library and installing npm dependencies:
+
+```sh
+make all && npm ci
+node --experimental-strip-types demos/typescript/demo.ts \
+  --scenario morning-run --pts 97
+```
+
+Set `PFUN_CMA_ENGINE_LIB` to use a shared library at a non-default path.
+
 ### Interactive C demo
 
 ```sh
@@ -106,11 +127,13 @@ make demo
 ```sh
 make demo-py-output
 make demo-c-output
+make demo-ts-output
 make demo-morning-run
 make demo-evening-party
 ```
 
-Outputs are saved under `docs/demo_outputs/`.
+Outputs are saved under `docs/demo_outputs/`, including `DEMO_TS_OUTPUT.md` for
+the TypeScript renderer.
 
 ### Scenario database buffer
 
