@@ -100,6 +100,8 @@ uv run python demos/python/demo.py --scenario evening-party
 The TypeScript renderer calls `run_cma_model` in the compiled shared library
 directly through Koffi and renders Markdown tables and ASCII charts. It requires
 Node.js 22.6 or newer and npm, but not the Python demo environment.
+Both demos load their scenario inputs from `demos/scenarios.json`; TypeScript
+point counts must be between 2 and 768.
 
 ```sh
 make demo-ts-output
