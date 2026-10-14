@@ -441,7 +441,6 @@ def core_combinations(labels: bool = False) -> list[dict[str, str]]:
     """Small 'core' buffer for clients that need only a few dozen scenarios:
     the all-default combination plus every single dimension perturbed to
     each of its non-default levels (1 + sum(len-1) entries)."""
-    import itertools
 
     dims = [(d, DIMENSIONS[d]) for d in DIMENSION_ORDER]
     out: list[dict[str, str]] = []

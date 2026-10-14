@@ -9,7 +9,6 @@ Tests cover:
 - Integration: full pipeline produces non-NaN outputs in expected ranges
 """
 
-import ctypes
 import sys
 import os
 import numpy as np

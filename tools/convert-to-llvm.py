@@ -72,7 +72,7 @@ def _print_summary(source: str, ir_path: str, bc_path: str) -> None:
 
     # Build the inner lines (without borders), then measure the longest.
     lines = [
-        f"  C \u2192 LLVM IR Conversion Complete  ",
+        "  C \u2192 LLVM IR Conversion Complete  ",
         f"  Source:    {source}",
         f"  LLVM IR:   {ir_path}",
         f"  Bitcode:   {bc_path}",

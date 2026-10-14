@@ -59,7 +59,7 @@ def describe_scenario(
     else:
         a_raw = kwargs["A_raw"]
         a_norm = build_activity_signal(t, defn.pulses)
-        print(f"- activity enabled: yes")
+        print("- activity enabled: yes")
         print(f"- A_raw max: {float(np.max(a_raw)):.3f}")
         print(f"- normalized activity proxy max: {float(np.max(a_norm)):.3f}")
     print(

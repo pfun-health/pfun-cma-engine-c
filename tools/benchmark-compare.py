@@ -25,9 +25,7 @@ Generates a markdown report with:
 __version__ = "1.0.0"
 __docformat__ = "restructuredtext"
 
-import json
 import logging
-import os
 import subprocess
 import sys
 import time
@@ -372,7 +370,7 @@ def build_library(build_target: str, project_root: Path) -> tuple[bool, str]:
             logger.error(f"Build {build_target} failed:\n{error_msg}")
             return False, f"Build failed: {error_msg[:200]}"
     except subprocess.TimeoutExpired:
-        msg = f"Build timed out after 120s"
+        msg = "Build timed out after 120s"
         logger.error(msg)
         return False, msg
     except Exception as e:
@@ -717,7 +715,7 @@ def generate_markdown_report(
     lines.append("# Benchmark Comparison Report")
     lines.append("")
     lines.append(f"**Generated:** {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
-    lines.append(f"**Project:** pfun-cma-engine-c")
+    lines.append("**Project:** pfun-cma-engine-c")
     lines.append(f"**Root:** {project_root}")
     lines.append("")
 
@@ -796,7 +794,7 @@ def generate_markdown_report(
         if so_result and so_result.timing:
             lines.append("### Speedup vs .so Baseline")
             lines.append("")
-            lines.append(f"| Engine | Speedup | Factor |")
+            lines.append("| Engine | Speedup | Factor |")
             lines.append("|--------|---------|--------|")
             baseline = so_result.timing.mean_ms
             for engine in sorted(set(r.engine for r in scenario_results)):

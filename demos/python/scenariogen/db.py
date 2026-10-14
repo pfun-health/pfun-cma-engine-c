@@ -24,7 +24,6 @@ from __future__ import annotations
 import json
 import os
 import sqlite3
-import sys
 from datetime import datetime, timezone
 
 # ---------------------------------------------------------------------------
@@ -528,7 +527,6 @@ def precompute(
         t = np.linspace(0.0, 24.0, 193)
 
     from scenariogen.mapping import (
-        OVERRIDE_INDEX,
         override_ref_ids,
         resolve_params,
     )

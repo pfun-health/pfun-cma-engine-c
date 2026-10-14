@@ -34,11 +34,9 @@ from dataclasses import dataclass
 
 from scenariogen.descriptors import (
     DESCRIPTORS,
-    DIMENSIONS,
     DIMENSION_ORDER,
     descriptor_id,
 )
-from scenariogen.references import reference
 
 # ---------------------------------------------------------------------------
 # calibration (baseline) free-parameter set
