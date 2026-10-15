@@ -113,12 +113,12 @@ demo-c-output: demo  ## Run the C-based demo (default settings)
 	$(BUILD_DIR)/demo --ascii --save $(DEMO_OUTPUT_DIR)/DEMO_C_OUTPUT.md
 
 .PHONY: demo-ts-output
-demo-ts-output: all npm-setup  ## Run the TypeScript demo against the compiled C engine
+demo-ts-output: all ts-setup  ## Run the TypeScript demo against the compiled C engine
 	node --experimental-strip-types $(DEMO_TS_DIR)/demo.ts --save $(DEMO_OUTPUT_DIR)/DEMO_TS_OUTPUT.md
 
-.PHONY: npm-setup
-npm-setup:  ## Install TypeScript demo dependencies
-	npm ci
+.PHONY: ts-setup
+ts-setup:  ## Install TypeScript demo dependencies
+	npm i typescript --save-dev
 
 .PHONY: demo-morning-run
 demo-morning-run:  ## Generate a demo scenario to simulate a "morning run" (utilizes metabolic activity parameters)
