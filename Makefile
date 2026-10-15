@@ -69,7 +69,7 @@ $(BUILD_DIR)/%.o: $(SRC_DIR)/%.c $(HEADERS)
 .PHONY: clean
 clean:
 	@echo "cleaning any existing build outputs..."
-	@rm -rfv .venv dist $(LIB_DIR)_c.egg-info $(BUILD_DIR) $(LIB_DIR)/*.so $(LIB_DIR)/*.a $(LIB_DIR)/*.o
+	@rm -rfv public/demo-wasm.html public/demo-wasm.js public/demo-wasm.wasm .venv dist $(LIB_DIR)_c.egg-info $(BUILD_DIR) $(LIB_DIR)/*.so $(LIB_DIR)/*.a $(LIB_DIR)/*.o
 
 # Rebuild from scratch
 .PHONY: rebuild
@@ -98,6 +98,10 @@ python-setup :  ## Setup python environment using uv (runtime dependencies only)
 python-setup-dev :  ## (dev) Setup python environment using uv
 	uv sync --dev --all-extras
 	. ./.venv/bin/activate
+
+.PHONY: demo-wasm
+demo-wasm : demo  ## compile demo to wasm binary using emscripten, output to BUILD_DIR/demo-wasm.html
+	emcc -g2 -I$(INCLUDE_DIR) -I$(NUKLEAR_DIR) -L$(BUILD_DIR) $(SRC_DIR)/*.c $(DEMO_C_DIR)/*.c -o public/demo-wasm.html
 
 # Capture demo session output to markdown
 .PHONY: demo-py-output demo-c-output demo-ts-output demo-morning-run demo-evening-party outputs npm-setup
