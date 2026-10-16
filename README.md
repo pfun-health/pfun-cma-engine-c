@@ -118,3 +118,11 @@ query> stressed and starving after a bad night, sitting at a desk
 ```
 
 Dependencies live in the optional `demo` dependency group (`uv sync --group demo`). For a single non-interactive query: `uv run --group demo python demos/py/scenario_embeddings_demo.py --query "..."`.
+
+## CGM ingestion and curve fitting
+
+Requires [GSL](https://www.gnu.org/software/gsl/) (`libgsl-dev`).
+
+- `make cgm-ingest CGM=path.csv N=1024`: C port of pfun-cma-model's `format_data` (ISO8601 time parsing/tz offset, unit guessing, glucose normalization to [0, 2], resample to N bins, linear interpolation of gaps). CSV needs a time column (`time`/`ts_utc`/`ts_local`/`systemTime`/`displayTime`) and a `value` (or `sg`) column.
+- `make cgm-fit CGM=path.csv N=1024`: fits `d, taup, taug, B, Cm, toff` using GSL nonlinear least squares (Levenberg-Marquardt, bounds enforced via a sine transform).
+- `make test-cgm`: tests both. API: `include/pfun_cma_engine/pfun_cma_cgm.h`.

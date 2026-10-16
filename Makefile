@@ -177,6 +177,26 @@ test-precision: all  ## Check FP32/FP16 boundary precision against FP64
 precision-report: all  ## Generate the model precision assessment report
 	$(PYTHON) tools/precision_report.py
 
+# ── CGM ingestion + curve fitting (GSL nonlinear least squares) ──────────────
+
+GSL_CFLAGS := $(shell pkg-config --cflags gsl 2>/dev/null)
+GSL_LIBS := $(shell pkg-config --libs gsl 2>/dev/null || echo -lgsl -lgslcblas)
+CGM_SRCS := $(SRC_DIR)/pfun_cma_engine.c $(SRC_DIR)/pfun_cma_cgm.c $(SRC_DIR)/fit/pfun_cma_fit.c
+
+.PHONY: cgm-ingest cgm-fit test-cgm
+cgm-ingest: $(BUILD_DIR)/cgm_fit  ## Ingest CGM CSV (CGM=path, N=samples) -> normalized/resampled CSV on stdout
+	$(BUILD_DIR)/cgm_fit --ingest-only $(or $(CGM),tests/data/sample_cgm.csv) $(or $(N),1024)
+
+cgm-fit: $(BUILD_DIR)/cgm_fit  ## Fit CMA model to CGM CSV with GSL nonlinear least squares (CGM=path, N=samples)
+	$(BUILD_DIR)/cgm_fit $(or $(CGM),tests/data/sample_cgm.csv) $(or $(N),1024)
+
+$(BUILD_DIR)/cgm_fit: $(DEMO_C_DIR)/cgm_fit.c $(CGM_SRCS) $(INCLUDE_DIR)/pfun_cma_engine/pfun_cma_cgm.h | directories
+	$(CC) $(CFLAGS) $(GSL_CFLAGS) -I$(INCLUDE_DIR) -o $@ $(DEMO_C_DIR)/cgm_fit.c $(CGM_SRCS) $(GSL_LIBS) $(LDFLAGS)
+
+test-cgm: | directories  ## Test CGM ingestion and GSL fitting
+	$(CC) $(CFLAGS) $(GSL_CFLAGS) -I$(INCLUDE_DIR) -o $(BUILD_DIR)/test_cgm tests/test_cgm.c $(CGM_SRCS) $(GSL_LIBS) $(LDFLAGS)
+	$(BUILD_DIR)/test_cgm
+
 # ── LLVM IR Tooling ──────────────────────────────────────────────────────────
 
 LLVM_IR   := $(BUILD_DIR)/pfun_cma_engine.ll
@@ -276,4 +296,4 @@ ir-metrics: $(LLVM_IR)  ## Check IR metrics against golden reference values
 analyze-all: analyze-ir optimize-ir profile-ir ir-metrics llvm-targets  ## Run all LLVM-related analysis targets
 
 .PHONY: test
-test: test-llvm check-ir test-scenariogen test-precision  ## Update the test target to run LLVM tests and the scenariogen suites too
+test: test-llvm check-ir test-scenariogen test-precision test-cgm  ## Update the test target to run LLVM tests and the scenariogen suites too
