@@ -158,7 +158,7 @@ def test_resolve_params_is_deterministic_and_isolated():
 
 def test_mood_stress_raises_cortisol_tone():
     params = resolve_params({"mood": "mood:stressed"})
-    assert params["taup"] == pytest.approx(1.2 * 0.80)     # cortisol amplitude up
+    assert params["taup"] == pytest.approx(0.76)           # cortisol amplitude up
     assert params["B"] == pytest.approx(0.05 * 1.03)       # basal glucose up
     # tired is a milder version of the same channel: it still lowers taup
     # (raising cortisol tone) but less than stress does, so the ordering in
@@ -169,18 +169,50 @@ def test_mood_stress_raises_cortisol_tone():
 
 def test_mood_happy_lowers_cortisol_tone():
     params = resolve_params({"mood": "happy"})
-    assert params["taup"] == pytest.approx(1.2 * 1.10)
+    assert params["taup"] == pytest.approx(1.417582418)
+
+
+@pytest.mark.parametrize(
+    "descriptor, expected_amplitude_ratio",
+    [
+        ({"mood": "stressed"}, 1.25),
+        ({"mood": "tired"}, 1.11),
+        ({"mood": "happy"}, 0.91),
+        ({"sleep": "poor"}, 1.09),
+        ({"sleep": "short"}, 1.18),
+    ],
+)
+def test_cortisol_overrides_match_documented_amplitude_changes(
+    descriptor, expected_amplitude_ratio
+):
+    base_tau = CALIBRATION_PARAMS["taup"]
+    scenario_tau = resolve_params(descriptor)["taup"]
+    base_amplitude = 1.0 / (1.0 + base_tau)
+    scenario_amplitude = 1.0 / (1.0 + scenario_tau)
+    assert scenario_amplitude / base_amplitude == pytest.approx(
+        expected_amplitude_ratio
+    )
 
 
 def test_hunger_starving_larger_earlier_meals():
     params = resolve_params({"hunger": "hunger:starving"})
-    assert params["B"] == pytest.approx(0.05 * 1.15)
+    assert params["B"] == CALIBRATION_PARAMS["B"]
     assert params["taug_vec"] == pytest.approx((1.0 * 1.20,) * 3)
-    assert params["tM"] == pytest.approx((6.5, 10.5, 17.0))
+    assert params["tM"] == pytest.approx((6.5, 11.0, 17.5))
     # in combination with stress the overrides stack deterministically
     combo = resolve_params({"mood": "stressed", "hunger": "starving"})
-    assert combo["B"] == pytest.approx(0.05 * 1.03 * 1.15)
-    assert combo["taup"] == pytest.approx(1.2 * 0.80)
+    assert combo["B"] == pytest.approx(0.05 * 1.03)
+    assert combo["taup"] == pytest.approx(0.76)
+
+
+def test_appetite_and_meal_size_overrides_leave_basal_bias_unchanged():
+    for descriptor in (
+        {"hunger": "sated"},
+        {"hunger": "hungry"},
+        {"hunger": "starving"},
+        {"meal_schedule": "heavy_dinner"},
+    ):
+        assert resolve_params(descriptor)["B"] == CALIBRATION_PARAMS["B"]
 
 
 def test_activity_levels_set_pulses_and_gains():
@@ -206,7 +238,7 @@ def test_meal_schedule_variants():
     heavy = resolve_params({"meal_schedule": "heavy_dinner"})
     assert heavy["tM"] == (7.0, 11.0, 19.0)
     assert heavy["taug_vec"] == (1.0, 1.0, 1.35)
-    assert heavy["B"] == pytest.approx(0.05 * 1.08)
+    assert heavy["B"] == CALIBRATION_PARAMS["B"]
 
 
 def test_label_forms_are_accepted():
