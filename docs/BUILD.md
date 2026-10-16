@@ -124,6 +124,16 @@ make demo
 ./build/demo
 ```
 
+### WebAssembly demo (form UI)
+
+Requires Emscripten (`emcc`) in `PATH`.
+
+```sh
+make demo-wasm
+python3 -m http.server 8000 --directory public
+# then open http://localhost:8000/index-wasm.html in a browser
+```
+
 ### Tracked output snapshots
 
 ```sh

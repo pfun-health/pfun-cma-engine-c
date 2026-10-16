@@ -45,8 +45,9 @@ HEADERS := $(wildcard $(INCLUDE_DIR)/pfun_cma_engine/*.h) $(wildcard $(SRC_DIR)/
 help: ## Display this help screen
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | sort | awk 'BEGIN {FS = ":.*?## "}; {printf "\033[36m%-15s\033[0m %s\n", $$1, $$2}'
 
-.PHONY: all
-all: $(TARGET) $(STATIC_TARGET)  ## Build shared libary targets (compiled to: build/*.o)
+.PHONY: libs all
+libs: $(TARGET) $(STATIC_TARGET)  ## Build libary target(s), compiled to: build/*.o,*.a
+all: libs  ## alias for 'libs' target
 
 .PHONY: directories
 directories:  # Create directories
@@ -73,12 +74,12 @@ clean:
 
 # Rebuild from scratch
 .PHONY: rebuild
-rebuild: clean all
+rebuild: clean libs
 
 # Debug build
 .PHONY: debug
 debug: CFLAGS := -Wall -Wextra -g -O0 -DDEBUG
-debug: clean all
+debug: clean libs
 
 # Format code
 .PHONY: format
@@ -100,15 +101,19 @@ python-setup-dev :  ## (dev) Setup python environment using uv
 	. ./.venv/bin/activate
 
 .PHONY: demo-wasm
-demo-wasm : demo  ## compile demo to wasm binary using emscripten, output to BUILD_DIR/demo-wasm.html
-	emcc -g2 -I$(INCLUDE_DIR) -I$(NUKLEAR_DIR) -L$(BUILD_DIR) $(DEMO_C_DIR)/demo.c $(DEMO_C_DIR)/term.c $(SRC_DIR)/pfun_cma_engine.c -o public/demo-wasm.html
+demo-wasm:  ## Build minimal browser wasm demo assets at public/demo-wasm.{js,wasm}
+	emcc -O2 -I$(INCLUDE_DIR) -I$(SRC_DIR) \
+	  $(DEMO_C_DIR)/wasm_demo.c $(SRC_DIR)/pfun_cma_engine.c -o public/demo-wasm.js \
+	  -sALLOW_MEMORY_GROWTH=1 \
+	  -sEXPORTED_FUNCTIONS='["_wasm_run_model","_wasm_get_npts","_wasm_get_t","_wasm_get_series_value"]' \
+	  -sEXPORTED_RUNTIME_METHODS='["ccall"]'
 
 # Capture demo session output to markdown
 .PHONY: demo-py-output demo-c-output demo-ts-output demo-morning-run demo-evening-party outputs npm-setup
 outputs: demo-py-output demo-c-output demo-ts-output demo-morning-run demo-evening-party  ## Capture demo session output to markdown
 
 .PHONY: demo-py-output
-demo-py-output: all python-setup  ## Run the Python-based demo (default settings)
+demo-py-output: libs python-setup  ## Run the Python-based demo (default settings)
 	. ./.venv/bin/activate
 	$(PYTHON) $(DEMO_PY_DIR)/demo.py --save $(DEMO_OUTPUT_DIR)/DEMO_PY_OUTPUT.md
 
@@ -117,7 +122,7 @@ demo-c-output: demo  ## Run the C-based demo (default settings)
 	$(BUILD_DIR)/demo --ascii --save $(DEMO_OUTPUT_DIR)/DEMO_C_OUTPUT.md
 
 .PHONY: demo-ts-output
-demo-ts-output: all npm-setup  ## Run the TypeScript demo against the compiled C engine
+demo-ts-output: libs npm-setup  ## Run the TypeScript demo against the compiled C engine
 	node --experimental-strip-types $(DEMO_TS_DIR)/demo.ts --save $(DEMO_OUTPUT_DIR)/DEMO_TS_OUTPUT.md
 
 .PHONY: npm-setup
@@ -151,7 +156,7 @@ $(NUKLEAR_HEADER):
 
 SCENARIO_DB := data/scenario_buffer.sqlite
 
-.PHONY: scenario-db scenario-db-core query-demo demo-scenario-embeddings test-scenariogen test-precision precision-report
+.PHONY: scenario-db scenario-db-core query-demo demo-scenario-embeddings demo-time2eat test-scenariogen test-precision precision-report
 scenario-db-core:
 	$(PYTHON) $(DEMO_PY_DIR)/build_scenario_db.py --db /tmp/scenario_core.sqlite --tier core
 	@echo "Core buffer written to /tmp/scenario_core.sqlite (15 scenarios x 97 pts)"
@@ -168,13 +173,16 @@ query-demo: scenario-db  ## Query the default demo from the scenario database (a
 demo-scenario-embeddings: scenario-db  ## Interactive semantic search over scenario DB (BGE embeddings + cosine similarity)
 	uv run --group demo python $(DEMO_PY_DIR)/scenario_embeddings_demo.py --db $(SCENARIO_DB)
 
+demo-time2eat: scenario-db  ## /time2eat: recommend mealtimes from nearest scenario embedding (usage: make demo-time2eat Q="poor sleep, late dinner")
+	uv run --group demo python $(DEMO_PY_DIR)/time2eat.py --db $(SCENARIO_DB) "/time2eat $(Q)"
+
 test-scenariogen:  ## Test scenario generation
 	$(PYTHON) -m pytest tests/test_scenariogen.py tests/test_scenario_db.py -q
 
-test-precision: all  ## Check FP32/FP16 boundary precision against FP64
+test-precision: libs  ## Check FP32/FP16 boundary precision against FP64
 	$(PYTHON) -m pytest tests/test_precision.py -q
 
-precision-report: all  ## Generate the model precision assessment report
+precision-report: libs  ## Generate the model precision assessment report
 	$(PYTHON) tools/precision_report.py
 
 # ── CGM ingestion + curve fitting (GSL nonlinear least squares) ──────────────
