@@ -112,8 +112,8 @@ int pfun_parse_iso8601(const char *s, double *out_epoch, double *out_tod) {
   if (*s == '+' || *s == '-') {
     int oh = 0, om = 0, sign = (*s == '-') ? -1 : 1;
     s++;
-    if (sscanf(s, "%2d:%2d", &oh, &om) < 1 &&
-        sscanf(s, "%2d%2d", &oh, &om) < 1)
+    if (sscanf(s, "%2d:%2d", &oh, &om) != 2 &&
+        sscanf(s, "%2d%2d", &oh, &om) != 2)
       return -1;
     off = sign * (oh * 3600.0 + om * 60.0);
   }
@@ -124,16 +124,21 @@ int pfun_parse_iso8601(const char *s, double *out_epoch, double *out_tod) {
   return 0;
 }
 
-static const double *cmp_epoch;
+typedef struct {
+  double epoch;
+  int index;
+} cgm_sort_entry;
+
 /**
- * Compare sample indices by their corresponding epoch timestamps.
+ * Compare samples by their epoch timestamps.
  *
- * @param a Pointer to the first sample index
- * @param b Pointer to the second sample index
+ * @param a Pointer to the first sample entry
+ * @param b Pointer to the second sample entry
  * @return Negative, zero, or positive according to timestamp ordering
  */
-static int cmp_idx(const void *a, const void *b) {
-  double x = cmp_epoch[*(const int *)a], y = cmp_epoch[*(const int *)b];
+static int cmp_sample_epoch(const void *a, const void *b) {
+  double x = ((const cgm_sort_entry *)a)->epoch;
+  double y = ((const cgm_sort_entry *)b)->epoch;
   return (x > y) - (x < y);
 }
 
@@ -168,7 +173,7 @@ int pfun_cgm_format(const double *epoch, const double *tod, const double *value,
   if (!epoch || !tod || !value || !out || n < 2 || N < 2)
     return -1;
   memset(out, 0, sizeof(*out));
-  int *ix = malloc(n * sizeof(int));
+  cgm_sort_entry *sorted = malloc(n * sizeof(*sorted));
   double *Graw = malloc(n * sizeof(double));
   double *local_tod = malloc(n * sizeof(double));
   double *sums[4], *cnt = calloc(N, sizeof(double));
@@ -178,34 +183,34 @@ int pfun_cgm_format(const double *epoch, const double *tod, const double *value,
   out->G = malloc(N * sizeof(double));
   out->value = malloc(N * sizeof(double));
   out->time = malloc(N * sizeof(double));
-  int ok = ix && Graw && local_tod && cnt && sums[0] && sums[1] && sums[2] &&
-           sums[3] && out->t && out->G && out->value && out->time;
+  int ok = sorted && Graw && local_tod && cnt && sums[0] && sums[1] &&
+           sums[2] && sums[3] && out->t && out->G && out->value && out->time;
   if (!ok)
     goto fail;
 
   out->mmoll = pfun_guess_glucose_units(value, n);
   for (int i = 0; i < n; i++) {
-    ix[i] = i;
+    sorted[i].epoch = epoch[i];
+    sorted[i].index = i;
     Graw[i] = isnan(value[i]) ? NAN : pfun_normalize_glucose(value[i], out->mmoll);
   }
-  cmp_epoch = epoch;
-  qsort(ix, n, sizeof(int), cmp_idx);
-  int first_sample = ix[0];
+  qsort(sorted, n, sizeof(*sorted), cmp_sample_epoch);
+  int first_sample = sorted[0].index;
   local_tod[first_sample] = tod[first_sample];
   for (int k = 1; k < n; k++) {
-    int previous = ix[k - 1], i = ix[k];
+    int previous = sorted[k - 1].index, i = sorted[k].index;
     double elapsed = (epoch[i] - epoch[previous]) / 3600.0;
     double days = round((local_tod[previous] + elapsed - tod[i]) / 24.0);
     local_tod[i] = tod[i] + days * 24.0;
   }
 
   /* downsample: N bins of equal width spanning [tmin, tmax], bin means */
-  double t0 = epoch[ix[0]], t1 = epoch[ix[n - 1]];
+  double t0 = sorted[0].epoch, t1 = sorted[n - 1].epoch;
   double width = (t1 - t0) / (N - 1);
   if (!(width > 0.0))
     goto fail;
   for (int k = 0; k < n; k++) {
-    int i = ix[k];
+    int i = sorted[k].index;
     if (isnan(Graw[i]))
       continue;
     int b = (int)floor((epoch[i] - t0) / width);
@@ -259,12 +264,12 @@ int pfun_cgm_format(const double *epoch, const double *tod, const double *value,
     if (out->t[b] < 0.0)
       out->t[b] += 24.0;
   }
-  free(ix); free(Graw); free(local_tod); free(cnt);
+  free(sorted); free(Graw); free(local_tod); free(cnt);
   for (int k = 0; k < 4; k++) free(sums[k]);
   out->N = N;
   return 0;
 fail:
-  free(ix); free(Graw); free(local_tod); free(cnt);
+  free(sorted); free(Graw); free(local_tod); free(cnt);
   for (int k = 0; k < 4; k++) free(sums[k]);
   pfun_cgm_data_free(out);
   return -1;

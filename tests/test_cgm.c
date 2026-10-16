@@ -16,6 +16,10 @@ int main(void) {
   double e2;
   CHECK(pfun_parse_iso8601("2024-03-05T13:30:00Z", &e2, &tod) == 0);
   CHECK(fabs(e - e2) < 1e-6);
+  CHECK(pfun_parse_iso8601("2024-03-05T08:30:00+0530", &e2, &tod) == 0);
+  double e3;
+  CHECK(pfun_parse_iso8601("2024-03-05T03:00:00Z", &e3, &tod) == 0);
+  CHECK(fabs(e2 - e3) < 1e-6);
   CHECK(pfun_parse_iso8601("2024-03-05T12:00:nan", &e2, &tod) != 0);
   CHECK(pfun_parse_iso8601("2024-03-05T12:00:inf", &e2, &tod) != 0);
   double v[3] = {100, 150, 90}, m[3] = {5.0, 9.0, 5.5};
@@ -36,6 +40,14 @@ int main(void) {
   double overnight_value[2] = {100.0, 110.0};
   CHECK(pfun_cgm_format(overnight_epoch, overnight_tod, overnight_value, 2,
                         5, &d) == 0);
+  CHECK(fabs(d.t[1] - 23.9166666667) < 1e-6);
+  CHECK(fabs(d.t[2]) < 1e-6);
+  CHECK(fabs(d.t[3] - 0.0833333333) < 1e-6);
+  pfun_cgm_data_free(&d);
+  double unsorted_epoch[2] = {1200.0, 0.0};
+  double unsorted_tod[2] = {0.1666666667, 23.8333333333};
+  CHECK(pfun_cgm_format(unsorted_epoch, unsorted_tod, overnight_value, 2, 5,
+                        &d) == 0);
   CHECK(fabs(d.t[1] - 23.9166666667) < 1e-6);
   CHECK(fabs(d.t[2]) < 1e-6);
   CHECK(fabs(d.t[3] - 0.0833333333) < 1e-6);
