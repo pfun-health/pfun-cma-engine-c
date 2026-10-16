@@ -16,9 +16,12 @@ int main(void) {
   double e2;
   CHECK(pfun_parse_iso8601("2024-03-05T13:30:00Z", &e2, &tod) == 0);
   CHECK(fabs(e - e2) < 1e-6);
+  CHECK(pfun_parse_iso8601("2024-03-05T12:00:nan", &e2, &tod) != 0);
+  CHECK(pfun_parse_iso8601("2024-03-05T12:00:inf", &e2, &tod) != 0);
   double v[3] = {100, 150, 90}, m[3] = {5.0, 9.0, 5.5};
   CHECK(pfun_guess_glucose_units(v, 3) == 0);
   CHECK(pfun_guess_glucose_units(m, 3) == 1);
+  pfun_cgm_data d;
 
   double peak_t[3] = {4.0, 5.0, 6.0}, peak_G[3] = {0.5, 1.0, 0.5};
   double meal_t;
@@ -28,7 +31,32 @@ int main(void) {
   CHECK(pfun_estimate_mealtimes(peak_t, peak_G, 3, 1, &meal_t) == 1);
   CHECK(fabs(meal_t) < 1e-9);
 
-  pfun_cgm_data d;
+  double overnight_epoch[2] = {0.0, 1200.0};
+  double overnight_tod[2] = {23.8333333333, 0.1666666667};
+  double overnight_value[2] = {100.0, 110.0};
+  CHECK(pfun_cgm_format(overnight_epoch, overnight_tod, overnight_value, 2,
+                        5, &d) == 0);
+  CHECK(fabs(d.t[1] - 23.9166666667) < 1e-6);
+  CHECK(fabs(d.t[2]) < 1e-6);
+  CHECK(fabs(d.t[3] - 0.0833333333) < 1e-6);
+  pfun_cgm_data_free(&d);
+  overnight_epoch[1] += 86400.0;
+  CHECK(pfun_cgm_format(overnight_epoch, overnight_tod, overnight_value, 2,
+                        5, &d) == 0);
+  CHECK(fabs(d.t[1] - 5.9166666667) < 1e-6);
+  CHECK(fabs(d.t[3] - 18.0833333333) < 1e-6);
+  pfun_cgm_data_free(&d);
+
+  CHECK(pfun_cgm_read_csv("tests/data/sample_cgm_local.csv", 3, &d) == 0);
+  CHECK(fabs(d.t[0] - 8.0) < 1e-6);
+  CHECK(fabs(d.t[2] - 8.1666666667) < 1e-6);
+  pfun_cgm_data_free(&d);
+
+  CHECK(pfun_cgm_read_csv("tests/data/sample_cgm_display_time.csv", 3, &d) == 0);
+  CHECK(fabs(d.t[0] - 8.0) < 1e-6);
+  CHECK(fabs(d.t[2] - 8.1666666667) < 1e-6);
+  pfun_cgm_data_free(&d);
+
   CHECK(pfun_cgm_read_csv("tests/data/sample_cgm.csv", 256, &d) == 0);
   CHECK(d.N == 256);
   for (int i = 0; i < d.N; i++) {

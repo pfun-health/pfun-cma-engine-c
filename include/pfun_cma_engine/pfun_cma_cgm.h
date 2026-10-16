@@ -27,17 +27,21 @@ typedef struct {
 int pfun_guess_glucose_units(const double *v, int n);
 /* Normalize glucose to [0, 2] (units: 0=mg/dL, 1=mmol/L) */
 double pfun_normalize_glucose(double g, int mmoll);
-/* Parse ISO8601 ("YYYY-MM-DD[T ]HH:MM:SS[.f][Z|+HH:MM]"). Returns 0 on success.
- * out_epoch: UTC seconds; out_tod: local time-of-day in hours. */
+/* Parse ISO8601 ("YYYY-MM-DD[T ]HH:MM:SS[.f][Z|+HH:MM]"). Rejects nonfinite
+ * seconds. Returns 0 on success. out_epoch: UTC seconds; out_tod: local
+ * time-of-day in hours. */
 int pfun_parse_iso8601(const char *s, double *out_epoch, double *out_tod);
 
 /* Ingest raw samples (epoch, tod, raw value) -> N evenly binned, interpolated
- * samples. Returns 0 on success; free with pfun_cgm_data_free. */
+ * samples. Local time is unwrapped during interpolation and wrapped to [0,24)
+ * in the result. Returns 0 on success; free with pfun_cgm_data_free. */
 int pfun_cgm_format(const double *epoch, const double *tod, const double *value,
                     int n, int N, pfun_cgm_data *out);
 /* Ingest a CSV with a header containing a time column ("time", "ts_utc" or
  * "ts_local", "systemTime" or "displayTime") and a value column ("value" or
- * "sg"). Returns 0 on success. */
+ * "sg"). If both UTC and local timestamp columns are present, UTC determines
+ * epoch ordering and the local column determines time of day. Returns 0 on
+ * success. */
 int pfun_cgm_read_csv(const char *path, int N, pfun_cgm_data *out);
 void pfun_cgm_data_free(pfun_cgm_data *d);
 

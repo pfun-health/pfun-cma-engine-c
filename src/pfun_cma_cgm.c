@@ -102,7 +102,7 @@ int pfun_parse_iso8601(const char *s, double *out_epoch, double *out_tod) {
   if (*s == ':') {
     char *end;
     sec = strtod(s + 1, &end);
-    if (end == s + 1)
+    if (end == s + 1 || !isfinite(sec))
       return -1;
     s = end;
   }
@@ -170,6 +170,7 @@ int pfun_cgm_format(const double *epoch, const double *tod, const double *value,
   memset(out, 0, sizeof(*out));
   int *ix = malloc(n * sizeof(int));
   double *Graw = malloc(n * sizeof(double));
+  double *local_tod = malloc(n * sizeof(double));
   double *sums[4], *cnt = calloc(N, sizeof(double));
   for (int k = 0; k < 4; k++)
     sums[k] = calloc(N, sizeof(double));
@@ -177,8 +178,8 @@ int pfun_cgm_format(const double *epoch, const double *tod, const double *value,
   out->G = malloc(N * sizeof(double));
   out->value = malloc(N * sizeof(double));
   out->time = malloc(N * sizeof(double));
-  int ok = ix && Graw && cnt && sums[0] && sums[1] && sums[2] && sums[3] &&
-           out->t && out->G && out->value && out->time;
+  int ok = ix && Graw && local_tod && cnt && sums[0] && sums[1] && sums[2] &&
+           sums[3] && out->t && out->G && out->value && out->time;
   if (!ok)
     goto fail;
 
@@ -189,6 +190,14 @@ int pfun_cgm_format(const double *epoch, const double *tod, const double *value,
   }
   cmp_epoch = epoch;
   qsort(ix, n, sizeof(int), cmp_idx);
+  int first_sample = ix[0];
+  local_tod[first_sample] = tod[first_sample];
+  for (int k = 1; k < n; k++) {
+    int previous = ix[k - 1], i = ix[k];
+    double elapsed = (epoch[i] - epoch[previous]) / 3600.0;
+    double days = round((local_tod[previous] + elapsed - tod[i]) / 24.0);
+    local_tod[i] = tod[i] + days * 24.0;
+  }
 
   /* downsample: N bins of equal width spanning [tmin, tmax], bin means */
   double t0 = epoch[ix[0]], t1 = epoch[ix[n - 1]];
@@ -203,7 +212,7 @@ int pfun_cgm_format(const double *epoch, const double *tod, const double *value,
     if (b >= N) b = N - 1;
     if (b < 0) b = 0;
     cnt[b] += 1.0;
-    sums[0][b] += tod[i];
+    sums[0][b] += local_tod[i];
     sums[1][b] += Graw[i];
     sums[2][b] += value[i];
     sums[3][b] += epoch[i];
@@ -245,12 +254,17 @@ int pfun_cgm_format(const double *epoch, const double *tod, const double *value,
     }
     for (int j = prev + 1; j < N; j++) v[j] = v[prev];
   }
-  free(ix); free(Graw); free(cnt);
+  for (int b = 0; b < N; b++) {
+    out->t[b] = fmod(out->t[b], 24.0);
+    if (out->t[b] < 0.0)
+      out->t[b] += 24.0;
+  }
+  free(ix); free(Graw); free(local_tod); free(cnt);
   for (int k = 0; k < 4; k++) free(sums[k]);
   out->N = N;
   return 0;
 fail:
-  free(ix); free(Graw); free(cnt);
+  free(ix); free(Graw); free(local_tod); free(cnt);
   for (int k = 0; k < 4; k++) free(sums[k]);
   pfun_cgm_data_free(out);
   return -1;
@@ -298,15 +312,19 @@ int pfun_cgm_read_csv(const char *path, int N, pfun_cgm_data *out) {
     return -1;
   char line[4096];
   char *f[64];
-  int tcol = -1, vcol = -1, ncols;
+  int tcol = -1, localcol = -1, vcol = -1, ncols;
   static const char *tnames[] = {"systemTime", "ts_utc", "time", "ts_local",
                                  "displayTime"};
+  static const char *local_names[] = {"ts_local", "displayTime"};
   static const char *vnames[] = {"value", "sg"};
   if (!fgets(line, sizeof line, fp)) { fclose(fp); return -1; }
   ncols = split_csv(line, f, 64);
   for (int k = 0; k < 5 && tcol < 0; k++)
     for (int c = 0; c < ncols; c++)
       if (!strcmp(f[c], tnames[k])) { tcol = c; break; }
+  for (int k = 0; k < 2 && localcol < 0; k++)
+    for (int c = 0; c < ncols; c++)
+      if (!strcmp(f[c], local_names[k])) { localcol = c; break; }
   for (int k = 0; k < 2 && vcol < 0; k++)
     for (int c = 0; c < ncols; c++)
       if (!strcmp(f[c], vnames[k])) { vcol = c; break; }
@@ -323,6 +341,12 @@ int pfun_cgm_read_csv(const char *path, int N, pfun_cgm_data *out) {
     char *end;
     if (pfun_parse_iso8601(f[tcol], &e, &t) != 0)
       continue;
+    if (localcol >= 0 && localcol != tcol) {
+      double local_epoch;
+      if (nf <= localcol ||
+          pfun_parse_iso8601(f[localcol], &local_epoch, &t) != 0)
+        continue;
+    }
     v = strtod(f[vcol], &end);
     if (end == f[vcol])
       v = NAN;
