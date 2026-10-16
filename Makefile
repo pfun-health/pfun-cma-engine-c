@@ -172,7 +172,7 @@ scenario-db-core:
 
 scenario-db: libs  ## Build the scenario database; precompute labeled scenarios using the compiled pfun-cma-engine libs.
 	@mkdir -p data
-	$(if $(wildcard "$(SCENARIO_DB)"), @echo Existing scenario_db detected, $(shell command $(PYTHON) $(DEMO_PY_DIR)/build_scenario_db.py --db $(SCENARIO_DB) --tier full --pts 193))
+	$(if $(wildcard $(SCENARIO_DB)), @echo Existing scenario_db detected, $(PYTHON) $(DEMO_PY_DIR)/build_scenario_db.py --db $(SCENARIO_DB) --tier full --pts 193)
 
 MOOD ?= stressed
 HUNGER ?= starving
