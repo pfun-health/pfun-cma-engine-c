@@ -144,3 +144,6 @@ Makefile conveniences: `make scenario-db-core`, `make scenario-db`,
 registry: identical git state + identical override table ⇒ byte-identical
 buffers (covered by `test_precompute_is_deterministic`). Rebuild with
 `replace=True`; the artifact is disposable.
+## Meal-shift variants
+
+`build_scenario_db.py --meal-shifts N` (default 2, `--meal-shift-step` hours, default 1) expands every base scenario into `N` alternatives whose meal onsets `tM` are offset by combinations of `-step/0/+step` hours per meal (`scenariogen.db.meal_shift_variants`: the all-earlier and all-later shifts first, then the remaining `3**n_meals - 1` combinations). Variants share the base `descriptor_set`, are stored after the base rows (base ids stay `0..n-1`), and carry a JSON `meal_shift` offset vector (NULL for base scenarios). `lookup_scenario` and the embedding corpus use base scenarios only; `/time2eat` scores variants as meal-timing alternatives.
