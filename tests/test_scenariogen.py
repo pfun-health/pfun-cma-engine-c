@@ -205,6 +205,34 @@ def test_hunger_starving_larger_earlier_meals():
     assert combo["taup"] == pytest.approx(0.76)
 
 
+@pytest.mark.parametrize(
+    "schedule, schedule_times, schedule_widths",
+    [
+        ("skipped_breakfast", (11.0, 17.5), (1.4, 1.1)),
+        ("late_dinner", (7.0, 11.0, 20.5), (1.0, 1.0, 1.2)),
+        ("heavy_dinner", (7.0, 11.0, 19.0), (1.0, 1.0, 1.35)),
+    ],
+)
+@pytest.mark.parametrize(
+    "hunger, width_multiplier",
+    [("sated", 0.90), ("neutral", 1.0), ("hungry", 1.08), ("starving", 1.20)],
+)
+def test_hunger_composes_with_nonstandard_meal_schedules(
+    schedule, schedule_times, schedule_widths, hunger, width_multiplier
+):
+    params = resolve_params({"hunger": hunger, "meal_schedule": schedule})
+    expected_times = schedule_times
+    if hunger == "starving" and schedule != "skipped_breakfast":
+        expected_times = (6.5, *schedule_times[1:])
+
+    assert params["tM"] == pytest.approx(expected_times)
+    assert len(params["tM"]) == len(schedule_times)
+    assert params["taug_vec"] == pytest.approx(
+        tuple(width * width_multiplier for width in schedule_widths)
+    )
+    assert params["B"] == CALIBRATION_PARAMS["B"]
+
+
 def test_appetite_and_meal_size_overrides_leave_basal_bias_unchanged():
     for descriptor in (
         {"hunger": "sated"},
