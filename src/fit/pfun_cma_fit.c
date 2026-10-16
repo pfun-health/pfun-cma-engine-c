@@ -83,7 +83,7 @@ int pfun_estimate_mealtimes(const double *t, const double *G, int N,
     }
     if (best < 0)
       break;
-    out_tM[found++] = t[best];
+    out_tM[found++] = fmax(0.0, t[best] - 1.0);
     for (int i = 0; i < N; i++) /* suppress peaks within 2h (circular) */
       if (12.0 - fabs(fabs(t[i] - t[best]) - 12.0) < 2.0)
         used[i] = 1;

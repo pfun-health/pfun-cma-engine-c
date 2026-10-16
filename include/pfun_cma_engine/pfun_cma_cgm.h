@@ -50,7 +50,8 @@ typedef struct {
   int status;     /* GSL status of convergence (0 = success) */
 } pfun_fit_result;
 
-/* Estimate meal times (hours) from G peaks (>= 2h apart). Returns count. */
+/* Estimate meal onset one hour before G peaks (>= 2h apart), clamped at
+ * midnight. Returns count. */
 int pfun_estimate_mealtimes(const double *t, const double *G, int N,
                             int n_meals, double *out_tM);
 /* Fit the CMA model to (t, G) with fixed meal times via GSL nonlinear least

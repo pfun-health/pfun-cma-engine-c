@@ -20,6 +20,14 @@ int main(void) {
   CHECK(pfun_guess_glucose_units(v, 3) == 0);
   CHECK(pfun_guess_glucose_units(m, 3) == 1);
 
+  double peak_t[3] = {4.0, 5.0, 6.0}, peak_G[3] = {0.5, 1.0, 0.5};
+  double meal_t;
+  CHECK(pfun_estimate_mealtimes(peak_t, peak_G, 3, 1, &meal_t) == 1);
+  CHECK(fabs(meal_t - 4.0) < 1e-9);
+  peak_t[1] = 0.5;
+  CHECK(pfun_estimate_mealtimes(peak_t, peak_G, 3, 1, &meal_t) == 1);
+  CHECK(fabs(meal_t) < 1e-9);
+
   pfun_cgm_data d;
   CHECK(pfun_cgm_read_csv("tests/data/sample_cgm.csv", 256, &d) == 0);
   CHECK(d.N == 256);
