@@ -45,8 +45,9 @@ HEADERS := $(wildcard $(INCLUDE_DIR)/pfun_cma_engine/*.h) $(wildcard $(SRC_DIR)/
 help: ## Display this help screen
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | sort | awk 'BEGIN {FS = ":.*?## "}; {printf "\033[36m%-15s\033[0m %s\n", $$1, $$2}'
 
-.PHONY: all
-all: $(TARGET) $(STATIC_TARGET)  ## Build shared libary targets (compiled to: build/*.o)
+.PHONY: libs all
+libs: $(TARGET) $(STATIC_TARGET)  ## Build libary target(s), compiled to: build/*.o,*.a
+all: libs  ## alias for 'libs' target
 
 .PHONY: directories
 directories:  # Create directories
@@ -73,12 +74,12 @@ clean:
 
 # Rebuild from scratch
 .PHONY: rebuild
-rebuild: clean all
+rebuild: clean libs
 
 # Debug build
 .PHONY: debug
 debug: CFLAGS := -Wall -Wextra -g -O0 -DDEBUG
-debug: clean all
+debug: clean libs
 
 # Format code
 .PHONY: format
@@ -108,7 +109,7 @@ demo-wasm : demo  ## compile demo to wasm binary using emscripten, output to BUI
 outputs: demo-py-output demo-c-output demo-ts-output demo-morning-run demo-evening-party  ## Capture demo session output to markdown
 
 .PHONY: demo-py-output
-demo-py-output: all python-setup  ## Run the Python-based demo (default settings)
+demo-py-output: libs python-setup  ## Run the Python-based demo (default settings)
 	. ./.venv/bin/activate
 	$(PYTHON) $(DEMO_PY_DIR)/demo.py --save $(DEMO_OUTPUT_DIR)/DEMO_PY_OUTPUT.md
 
@@ -117,7 +118,7 @@ demo-c-output: demo  ## Run the C-based demo (default settings)
 	$(BUILD_DIR)/demo --ascii --save $(DEMO_OUTPUT_DIR)/DEMO_C_OUTPUT.md
 
 .PHONY: demo-ts-output
-demo-ts-output: all npm-setup  ## Run the TypeScript demo against the compiled C engine
+demo-ts-output: libs npm-setup  ## Run the TypeScript demo against the compiled C engine
 	node --experimental-strip-types $(DEMO_TS_DIR)/demo.ts --save $(DEMO_OUTPUT_DIR)/DEMO_TS_OUTPUT.md
 
 .PHONY: npm-setup
@@ -174,10 +175,10 @@ demo-time2eat: scenario-db  ## /time2eat: recommend mealtimes from nearest scena
 test-scenariogen:  ## Test scenario generation
 	$(PYTHON) -m pytest tests/test_scenariogen.py tests/test_scenario_db.py -q
 
-test-precision: all  ## Check FP32/FP16 boundary precision against FP64
+test-precision: libs  ## Check FP32/FP16 boundary precision against FP64
 	$(PYTHON) -m pytest tests/test_precision.py -q
 
-precision-report: all  ## Generate the model precision assessment report
+precision-report: libs  ## Generate the model precision assessment report
 	$(PYTHON) tools/precision_report.py
 
 # ── CGM ingestion + curve fitting (GSL nonlinear least squares) ──────────────

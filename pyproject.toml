@@ -19,7 +19,6 @@ packages = ["pfun_cma_engine"]
 [tool.setuptools.package-data]
 pfun_cma_engine = ["*.so", "*.a", "*.py"]
 
-
 # Note: Extension modules are declared via `setup.py` for compatibility
 # with editable builds and current setuptools behaviour.
 # The setup.py builds the extension as pfun_cma_engine/libpfun_cma_engine.so
@@ -28,6 +27,7 @@ pfun_cma_engine = ["*.so", "*.a", "*.py"]
 [dependency-groups]
 demo = [
     "fastembed>=0.9.0",
+    "onnxruntime; sys_platform == 'linux' and platform_machine == 'x86_64'",
 ]
 
 dev = [
