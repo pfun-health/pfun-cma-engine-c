@@ -5,7 +5,7 @@ descriptor level on the health-metric dimensions (mood, hunger, sleep,
 activity, meal_schedule) contributes deterministic *overrides* to the free
 parameters of the CMA engine.  The resolved parameter set of a scenario is
 computed by starting from the calibration (baseline) parameter set and
-applying overrides in a fixed dimension order.
+applying meal-schedule overrides before hunger modifiers so they compose.
 
 Overrides are expressed as (parameter, operation, value, ref_id) with one of
 three operations:
@@ -21,10 +21,10 @@ physiological assumption; the same table is materialized in the database as
 Channel summary (see docs/SCENARIO_DB.md for the full table)
 ------------------------------------------------------------
 mood    : HPA/cortisol tone via ``taup`` (cortisol amplitude ~ 1/(1+taup))
-hunger  : meal load ``B``/``taug_vec`` and meal timing ``tM``
+hunger  : meal response width ``taug_vec`` and meal timing ``tM``
 sleep   : cortisol tone ``taup`` + basal glucose ``B``
 activity: activity pulses + pathway gains ``gamma_A, kappa_A, beta_A, eta_A, tau_A``
-meals   : meal pattern ``tM``/``taug_vec``/``B``
+meals   : meal pattern ``tM``/``taug_vec``
 """
 
 from __future__ import annotations
@@ -119,7 +119,7 @@ class Override:
 OVERRIDES: tuple[Override, ...] = (
     # ---- mood -----------------------------------------------------------
     Override(
-        "mood:stressed", "taup", "mul", 0.80,
+        "mood:stressed", "taup", "mul", 0.633333333,
         "Chronic stress elevation of 24h cortisol output; modeled as +25% "
         "cortisol amplitude (amplitude ~ 1/(1+taup)). Static tone elevation: "
         "acute HPA spikes are not modeled.",
@@ -138,7 +138,7 @@ OVERRIDES: tuple[Override, ...] = (
         "strilka2016stress",
     ),
     Override(
-        "mood:tired", "taup", "mul", 0.90,
+        "mood:tired", "taup", "mul", 0.818318318,
         "Sleepiness/fatigue correlates with raised cortisol and impaired "
         "glucose tolerance; modeled as +11% cortisol amplitude.",
         "vanleeuwen2010sleep",
@@ -150,7 +150,7 @@ OVERRIDES: tuple[Override, ...] = (
         "vanleeuwen2010sleep",
     ),
     Override(
-        "mood:happy", "taup", "mul", 1.10,
+        "mood:happy", "taup", "mul", 1.181318681,
         "Positive affect is inversely correlated with daily cortisol "
         "output (happiest quintile ~32% lower cortisol); modeled as -9% "
         "cortisol amplitude (lower tone).",
@@ -158,48 +158,40 @@ OVERRIDES: tuple[Override, ...] = (
     ),
     # ---- hunger ----------------------------------------------------------
     Override(
-        "hunger:sated", "B", "mul", 0.92,
-        "Expected satiety reduces the amount eaten at the next meal.",
-        "brunstrom2011satiety",
-    ),
-    Override(
         "hunger:sated", "taug_vec", "mul", 0.90,
-        "Smaller meals are absorbed faster; modeled as narrower meal "
-        "pulses.",
+        "Expected satiety is represented by narrower glucose-response "
+        "profiles; the engine has no direct meal-amplitude parameter.",
         "brunstrom2011satiety",
-    ),
-    Override(
-        "hunger:hungry", "B", "mul", 1.06,
-        "Metabolic and hedonic drives increase meal size.",
-        "berthoud2011appetite",
     ),
     Override(
         "hunger:hungry", "taug_vec", "mul", 1.08,
-        "Larger meals extend glucose absorption; modeled as wider meal "
-        "pulses.",
+        "Larger meals are represented by broader glucose-response profiles; "
+        "the engine has no direct meal-amplitude parameter.",
         "goldstone2009fasting",
     ),
     Override(
-        "hunger:starving", "B", "mul", 1.15,
-        "Fasting biases reward towards energy-dense food and increases "
-        "intake at the next meals.",
-        "goldstone2009fasting",
+        "hunger:hungry", "taug_vec", "mul", 1.0,
+        "Metabolic and hedonic drives increase meal size; this citation "
+        "supports the appetite descriptor, while meal amplitude is not a "
+        "separate engine parameter.",
+        "berthoud2011appetite",
     ),
     Override(
         "hunger:starving", "taug_vec", "mul", 1.20,
-        "Compensatory over-consumption after fasting is modeled as wider "
-        "meal pulses.",
+        "Compensatory over-consumption after fasting is represented by "
+        "broader glucose-response profiles; the engine has no direct "
+        "meal-amplitude parameter.",
         "goldstone2009fasting",
     ),
     Override(
-        "hunger:starving", "tM", "add", -0.5,
+        "hunger:starving", "tM", "set", (6.5, 11.0, 17.5),
         "Fasting shortens the latency to the next meal (hippocampal "
-        "meal-onset signaling); breakfast moved ~30 min earlier.",
+        "meal-onset signaling); breakfast alone moves ~30 min earlier.",
         "henderson2013meal",
     ),
     # ---- sleep -----------------------------------------------------------
     Override(
-        "sleep:poor", "taup", "mul", 0.92,
+        "sleep:poor", "taup", "mul", 0.848623853,
         "Sleep loss/fragmentation elevates cortisol and lowers glucose "
         "tolerance; modeled as +9% cortisol amplitude.",
         "vanleeuwen2010sleep",
@@ -210,7 +202,7 @@ OVERRIDES: tuple[Override, ...] = (
         "vanleeuwen2010sleep",
     ),
     Override(
-        "sleep:short", "taup", "mul", 0.85,
+        "sleep:short", "taup", "mul", 0.720338983,
         "One week of 5h/night sleep restriction impairs glucose tolerance "
         "and insulin sensitivity; circadian misalignment reduces insulin "
         "sensitivity/secretion. Modeled as +18% cortisol amplitude.",
@@ -319,7 +311,9 @@ OVERRIDES: tuple[Override, ...] = (
     ),
     Override(
         "meal_schedule:late_dinner", "taug_vec", "set", (1.0, 1.0, 1.2),
-        "Later meals are slightly larger (evening eating pattern).",
+        "A somewhat larger evening meal is represented by a broader "
+        "glucose-response profile; there is no direct meal-amplitude "
+        "parameter.",
         "bandin2014meal",
     ),
     Override(
@@ -330,11 +324,6 @@ OVERRIDES: tuple[Override, ...] = (
     Override(
         "meal_schedule:heavy_dinner", "taug_vec", "set", (1.0, 1.0, 1.35),
         "Wider dinner glucose pulse encodes the larger evening meal size.",
-        "monnier2003postprandial",
-    ),
-    Override(
-        "meal_schedule:heavy_dinner", "B", "mul", 1.08,
-        "Overall higher intake raises the basal glucose level.",
         "monnier2003postprandial",
     ),
 )
@@ -386,10 +375,10 @@ def resolve_params(descriptor_set: dict[str, str] | None = None) -> dict:
     """Resolve a descriptor combination into the full engine parameter dict.
 
     ``descriptor_set`` maps dimension id -> descriptor id (or label).  Missing
-    dimensions fall back to that dimension's default descriptor.  Overrides
-    are applied in ``DIMENSION_ORDER``, starting from CALIBRATION_PARAMS, so
-    the result is deterministic.  The returned dict is a fresh copy; callers
-    may mutate it freely.
+    dimensions fall back to that dimension's default descriptor.  Meal
+    schedules are applied before hunger modifiers so their width changes
+    compose; the result is deterministic.  The returned dict is a fresh copy;
+    callers may mutate it freely.
     """
     if descriptor_set is None:
         descriptor_set = {}
@@ -403,6 +392,7 @@ def resolve_params(descriptor_set: dict[str, str] | None = None) -> dict:
 
     params = deepcopy(CALIBRATION_PARAMS)
 
+    hunger_desc_id = None
     for dim_id in DIMENSION_ORDER:
         if dim_id not in descriptor_set or not descriptor_set[dim_id]:
             continue
@@ -420,8 +410,24 @@ def resolve_params(descriptor_set: dict[str, str] | None = None) -> dict:
         if desc_id not in DESCRIPTORS:
             raise ValueError(f"unknown {dim_id} descriptor {raw!r}")
 
+        if dim_id == "hunger":
+            hunger_desc_id = desc_id
+            continue
+
         for ov in overrides_for(desc_id):
             ov.apply(params)
+
+    if hunger_desc_id is not None:
+        for ov in overrides_for(hunger_desc_id):
+            if ov.param_name == "tM" and ov.op == "set":
+                breakfast_delta = ov.value[0] - CALIBRATION_PARAMS["tM"][0]
+                if params["tM"] and params["tM"][0] == CALIBRATION_PARAMS["tM"][0]:
+                    params["tM"] = (
+                        params["tM"][0] + breakfast_delta,
+                        *params["tM"][1:],
+                    )
+            else:
+                ov.apply(params)
 
     _finalize_tuples(params)
     return params

@@ -44,14 +44,20 @@ Verified examples from the buffer's `parameter_overrides`:
 
 | Channel | Descriptor | Effects (op value) | Rationale ref(s) |
 |---------|-----------|--------------------|------------------|
-| `mood → taup, B` | stressed | `taup` ×0.80, ×1.00; `B` ×1.03 | russell2019stress, feder2004cortisol, strilka2016stress |
-| `mood → taup, B` | tired | `taup` ×0.90, `B` ×1.02 | vanleeuwen2010sleep |
-| `mood → taup` | happy | `taup` ×1.10 | steptoe2007affect |
-| `hunger → B, taug_vec, tM` | starving | `B` ×1.15, `taug_vec` ×1.20, `tM` −0.5 | goldstone2009fasting, henderson2013meal |
-| `hunger → B, taug_vec` | sated | `B` ×0.92, `taug_vec` ×0.90 | brunstrom2011satiety |
-| `sleep → taup, B` | short | `taup` ×0.85, `B` ×1.04 | vanleeuwen2010sleep, qian2018circadian |
+| `mood → taup, B` | stressed | `taup` ×0.6333, ×1.00; `B` ×1.03 | russell2019stress, feder2004cortisol, strilka2016stress |
+| `mood → taup, B` | tired | `taup` ×0.8183, `B` ×1.02 | vanleeuwen2010sleep |
+| `mood → taup` | happy | `taup` ×1.1813 | steptoe2007affect |
+| `hunger → taug_vec, tM` | starving | `taug_vec` ×1.20, `tM` [6.5, 11, 17.5] | goldstone2009fasting, henderson2013meal |
+| `hunger → taug_vec` | sated | `taug_vec` ×0.90 | brunstrom2011satiety |
+| `sleep → taup, B` | short | `taup` ×0.7203, `B` ×1.04 | vanleeuwen2010sleep, qian2018circadian |
 | `activity → gamma_A, beta_A, eta_A, tau_A, pulses` | vigorous | γ_A 0.20, β_A 0.20, η_A 0.60, τ_A 4.0 | sylow2017exercise, richter2013glut4, frampton2021exercise |
-| `meal_schedule → tM, taug_vec, B` | late_dinner | `tM` [7, 11, 20.5], `taug_vec` [1, 1, 1.2] | zecevic2023timing, bandin2014meal |
+| `meal_schedule → tM, taug_vec` | late_dinner | `tM` [7, 11, 20.5], `taug_vec` [1, 1, 1.2] | zecevic2023timing, bandin2014meal |
+
+The engine's `B` parameter scales the basal glucose-bias term, not meal
+amplitude. Hunger and meal-size descriptors therefore adjust the meal-response
+width (`taug_vec`) rather than changing `B`; meal size remains an approximation
+because the engine has no independent meal-amplitude parameter. Cortisol-tone
+overrides are calibrated against the engine's `1 / (1 + taup)` amplitude factor.
 
 The full machine-readable registry lives in
 `demos/py/scenariogen/mapping.py::OVERRIDES` and is seeded verbatim into

@@ -17,10 +17,10 @@ descriptors through ``descriptor_refs`` in the database.
 Dimensions
 ----------
 - ``mood``          affective state -> HPA/cortisol tone (taup), basal load (B)
-- ``hunger``        appetitive state -> meal load (B, taug_vec) and timing (tM)
+- ``hunger``        appetitive state -> meal response width (taug_vec) and timing (tM)
 - ``sleep``         nocturnal sleep sufficiency -> cortisol tone (taup), basal glucose (B)
 - ``activity``      daytime physical activity -> activity pulses + sensitization params
-- ``meal_schedule`` meal timing/load pattern -> tM, taug_vec, B
+- ``meal_schedule`` meal timing/response pattern -> tM, taug_vec
 """
 
 from __future__ import annotations
@@ -125,7 +125,7 @@ _MOOD = Dimension(
 )
 
 # ---------------------------------------------------------------------------
-# hunger: appetitive state -> meal load and timing
+# hunger: appetitive state -> meal response width and timing
 # ---------------------------------------------------------------------------
 
 _HUNGER_DESCRIPTORS = (
@@ -136,9 +136,10 @@ _HUNGER_DESCRIPTORS = (
         ordinal=0,
         description="Low appetitive drive: appetite is satisfied.",
         physiological_note=(
-            "Expected satiety reduces the amount eaten and lengthens the "
-            "interval to the next meal (Brunstrom 2011; Berthoud 2011). "
-            "Modeled as smaller meal loads (B down, taug_vec down)."
+            "Expected satiety reduces the amount eaten (Brunstrom 2011; "
+            "Berthoud 2011). Modeled as a narrower glucose-response profile "
+            "(taug_vec down); the engine has no separate meal-amplitude "
+            "parameter or hunger-driven interval adjustment."
         ),
     ),
     Descriptor(
@@ -161,7 +162,9 @@ _HUNGER_DESCRIPTORS = (
             "Metabolic and hedonic drives converge on larger meals and "
             "shorter inter-meal intervals (Berthoud 2011; Goldstone et al. "
             "2009: fasting biases reward towards high-calorie foods). "
-            "Modeled as larger meal loads (B, taug_vec up)."
+            "Larger meals are approximated with broader glucose-response "
+            "profiles (taug_vec up); meal amplitude and interval are not "
+            "independently parameterized."
         ),
     ),
     Descriptor(
@@ -173,9 +176,10 @@ _HUNGER_DESCRIPTORS = (
         physiological_note=(
             "Prolonged fasting increases meal anticipation and biases intake "
             "towards energy-dense foods (Goldstone et al. 2009) and "
-            "hippocampal meal-onset signaling shortens latencies to eat "
-            "(Henderson et al. 2013; Parent et al. 2014). Modeled as larger, "
-            "earlier meals (B and taug_vec up; breakfast shifted earlier)."
+            "hippocampal meal-onset signaling shortens latency to eat "
+            "(Henderson et al. 2013; Parent et al. 2014). Larger meals are "
+            "approximated with broader glucose-response profiles "
+            "(taug_vec up), and breakfast alone shifts 30 minutes earlier."
         ),
     ),
 )
@@ -183,7 +187,7 @@ _HUNGER_DESCRIPTORS = (
 _HUNGER = Dimension(
     dimension_id="hunger",
     name="Hunger / appetite",
-    description="Appetitive state implemented through meal load and timing.",
+    description="Appetitive state implemented through meal response width and timing.",
     default_descriptor="neutral",
     descriptors=_HUNGER_DESCRIPTORS,
 )
@@ -364,8 +368,8 @@ _MEAL_DESCRIPTORS = (
             "Meal-size distribution matters: large evening meals amplify "
             "nocturnal hyperglycaemia and fasting glucose the next morning "
             "(Monnier et al. 2003; Bandín et al. 2014). Modeled by a wider "
-            "dinner glucose pulse (taug_vec[2] up) and a modest rise of "
-            "basal glucose (B)."
+            "dinner glucose-response profile (taug_vec[2] up); the engine has "
+            "no separate meal-amplitude parameter."
         ),
     ),
 )
@@ -373,7 +377,7 @@ _MEAL_DESCRIPTORS = (
 _MEAL_SCHEDULE = Dimension(
     dimension_id="meal_schedule",
     name="Meal schedule",
-    description="Meal timing and load pattern implemented through tM/taug_vec/B.",
+    description="Meal timing and glucose-response profile implemented through tM/taug_vec.",
     default_descriptor="standard",
     descriptors=_MEAL_DESCRIPTORS,
 )
