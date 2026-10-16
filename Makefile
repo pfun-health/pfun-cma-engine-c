@@ -8,11 +8,11 @@ CFLAGS := -Wall -Wextra -O2 -std=c99
 CXXFLAGS := -Wall -Wextra -O2 -std=c++11
 LDFLAGS := -lm
 
-# Python interpreter for demo scripts (prefer project venv)
-PYTHON := $(if $(wildcard .venv/bin/python),.venv/bin/python,$(if $(shell command -v uv 2>/dev/null),uv run python,python3))
-
 # uv package manager (explicit setting to avoid issues with competing local installations)
 UV := /usr/bin/uv
+
+# Python interpreter for demo scripts (prefer project venv)
+PYTHON := $(UV) run python
 
 # Nuklear
 NUKLEAR_DIR := third_party/nuklear
@@ -73,7 +73,7 @@ $(BUILD_DIR)/%.o: $(SRC_DIR)/%.c $(HEADERS)
 .PHONY: clean
 clean:
 	@echo "cleaning any existing build outputs..."
-	@rm -rfv public/demo-wasm.html public/demo-wasm.js public/demo-wasm.wasm .venv dist $(LIB_DIR)_c.egg-info $(BUILD_DIR) $(LIB_DIR)/*.so $(LIB_DIR)/*.a $(LIB_DIR)/*.o
+	@rm -rfv $(SCENARIO_DB) public/demo-wasm.html public/demo-wasm.js public/demo-wasm.wasm .venv dist $(LIB_DIR)_c.egg-info $(BUILD_DIR) $(LIB_DIR)/*.so $(LIB_DIR)/*.a $(LIB_DIR)/*.o
 
 # Rebuild from scratch
 .PHONY: rebuild
@@ -95,13 +95,19 @@ format:  ## Format code using clang-format
 check-format:  ## check code formatting using clang-format
 	clang-format --dry-run -Werror $(SRC_DIR)/*.c $(SRC_DIR)/*.h 2>/dev/null || echo "clang-format not available"
 
-.PHONY: python-setup python-setup-dev
-python-setup :  ## Setup python environment using $(UV) (runtime dependencies only)
+.PHONY: python-clean-venv python-setup python-setup-dev
+python-clean-venv :
+	@rm -rf ./.venv ./.devenv/**/venv
+
+python-setup : python-clean-venv  ## Setup python environment using $(UV) (runtime dependencies only)
+	$(UV) venv
 	$(UV) sync
-	. ./.venv/bin/activate
-python-setup-dev :  ## (dev) Setup python environment using $(UV)
+	@echo "...done setting up $(UV)."
+
+python-setup-dev : python-clean-venv  ## (dev) Setup python environment using $(UV)
+	$(UV) venv
 	$(UV) sync --dev --all-extras
-	. ./.venv/bin/activate
+	@echo "[dev] ...done setting up $(UV)."
 
 .PHONY: demo-wasm
 demo-wasm:  ## Build minimal browser wasm demo assets at public/demo-wasm.{js,wasm}
@@ -162,25 +168,35 @@ SCENARIO_DB := data/scenario_buffer.sqlite
 .PHONY: scenario-db scenario-db-core query-demo demo-scenario-embeddings demo-time2eat test-scenariogen test-precision precision-report
 scenario-db-core:
 	$(PYTHON) $(DEMO_PY_DIR)/build_scenario_db.py --db /tmp/scenario_core.sqlite --tier core
-	@echo "Core buffer written to /tmp/scenario_core.sqlite (15 scenarios x 97 pts)"
+	@echo "Core buffer written to /tmp/scenario_core.sqlite \(15 scenarios x 97 pts\)"
 
-scenario-db:  ## Build the scenario database (precompute labeled scenarios using the compiled pfun-cma-engine libs)
+scenario-db: libs  ## Build the scenario database; precompute labeled scenarios using the compiled pfun-cma-engine libs.
 	@mkdir -p data
-	$(if [ -f $(SCENARIO_DB) ], @echo [Cached] existing scenario_db detected, $(shell command $(PYTHON) $(DEMO_PY_DIR)/build_scenario_db.py --db $(SCENARIO_DB) --tier full --pts 193))
+	$(if $(wildcard "$(SCENARIO_DB)"), @echo Existing scenario_db detected, $(shell command $(PYTHON) $(DEMO_PY_DIR)/build_scenario_db.py --db $(SCENARIO_DB) --tier full --pts 193))
+
+MOOD ?= stressed
+HUNGER ?= starving
+SLEEP ?= restful
+ACTIVITY_LVL ?= sedentary
+MEAL_SCHED ?= standard
 
 query-demo: scenario-db  ## Query the default demo from the scenario database (and build the database if not already built)
-	$(PYTHON) $(DEMO_PY_DIR)/query_scenario_db.py --db $(SCENARIO_DB) \
-	  --mood stressed --hunger starving --sleep restful --activity sedentary \
-	  --meal-schedule standard --summary-only --timecourse --references
+	$(PYTHON) $(DEMO_PY_DIR)/query_scenario_db.py \
+		--db $(SCENARIO_DB) \
+		--mood "$(MOOD)" \
+		--hunger "$(HUNGER)" \
+		--sleep "$(SLEEP)" \
+		--activity "$(ACTIVITY_LVL)" \
+		--meal-schedule "$(MEAL_SCHED)" \
+		--summary-only \
+		--timecourse \
+		--references
 
 demo-scenario-embeddings: scenario-db  ## Interactive semantic search over scenario DB (BGE embeddings + cosine similarity)
 	$(UV) run --group demo python $(DEMO_PY_DIR)/scenario_embeddings_demo.py --db $(SCENARIO_DB)
 
 demo-time2eat: scenario-db  ## /time2eat: recommend mealtimes from nearest scenario embedding (usage: make demo-time2eat Q="poor sleep, late dinner")
 	$(UV) run --group demo python $(DEMO_PY_DIR)/time2eat.py --db $(SCENARIO_DB) "/time2eat $(Q)"
-
-demo-time2eat: scenario-db  ## /time2eat: recommend mealtimes from nearest scenario embedding (usage: make demo-time2eat Q="poor sleep, late dinner")
-	uv run --group demo python $(DEMO_PY_DIR)/time2eat.py --db $(SCENARIO_DB) "/time2eat $(Q)"
 
 test-scenariogen:  ## Test scenario generation
 	$(PYTHON) -m pytest tests/test_scenariogen.py tests/test_scenario_db.py -q
