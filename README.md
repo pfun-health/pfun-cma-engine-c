@@ -19,6 +19,8 @@ _Numerical engine for the [PFun CMA Model](https://github.com/pfun-health/pfun-c
 
 ## Build and run
 
+A Nix flake dev shell is available (`nix develop`).
+
 See [`docs/BUILD.md`](docs/BUILD.md) for build instructions.
 
 ## Validation

@@ -13,6 +13,20 @@ Instructions for building the C library, Python package, and running demos.
 - **uv** or pip (for Python package)
 - **DuckDB** >= 1.5 Python package (scenario buffer; installed via `uv sync --dev`)
 
+### Nix (optional)
+
+`flake.nix` provides a dev shell (gcc, make, GSL, LLVM tools, clang-format,
+emscripten, Python 3.11, uv, Node 22) and a package for the C library.
+
+```sh
+nix develop            # dev shell; runs `uv sync --dev` on first entry
+nix build              # builds libpfun_cma_engine.{so,a} + headers into ./result
+```
+
+The shell sets `MAKEFLAGS="UV=$(command -v uv)"` because the Makefile
+defaults to `/usr/bin/uv`. Flakes must be enabled
+(`--extra-experimental-features 'nix-command flakes'`).
+
 ### Install uv
 
 ```sh
