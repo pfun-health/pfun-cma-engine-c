@@ -57,6 +57,15 @@ def main() -> int:
         help="timecourse resolution (points over 24 h)",
     )
     parser.add_argument(
+        "--meal-shifts", type=int, default=2,
+        help="alternative +/-step-hour meal-timing scenarios generated per "
+             "base scenario (0 disables; default 2 = all meals -1h/+1h)",
+    )
+    parser.add_argument(
+        "--meal-shift-step", type=float, default=1.0,
+        help="meal shift step in hours (default 1.0)",
+    )
+    parser.add_argument(
         "--seed", type=int, default=42, help="engine RNG seed (unused: noise off)"
     )
     parser.add_argument(
@@ -101,6 +110,8 @@ def main() -> int:
         n = sgen_db.precompute(
             conn, combos, t=t, tier=args.tier,
             progress=True, meta_extra=extra,
+            meal_shift_count=args.meal_shifts,
+            meal_shift_step=args.meal_shift_step,
         )
         stats = sgen_db.buffer_stats(conn)
         print(f"[scenariogen] precomputed {n} scenarios")

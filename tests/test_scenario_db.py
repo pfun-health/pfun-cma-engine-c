@@ -333,3 +333,46 @@ def test_physiological_direction_in_buffer(tmp_path):
     assert moderate["I_E_eff_max"] > sedentary["I_E_eff_max"]
 
     conn.close()
+
+def test_meal_shift_variants_combinatorics():
+    v = sgen_db.meal_shift_variants(3)
+    assert v == [(-1.0, -1.0, -1.0), (1.0, 1.0, 1.0)]
+    allv = sgen_db.meal_shift_variants(3, max_variants=None)
+    assert len(allv) == 3**3 - 1
+    assert len(set(allv)) == len(allv) and (0.0, 0.0, 0.0) not in allv
+    assert allv[:2] == v
+    assert sgen_db.meal_shift_variants(2, step=0.5)[1] == (0.5, 0.5)
+
+
+def test_precompute_meal_shift_variants(tmp_path):
+    import json
+
+    conn = sgen_db.create_scenario_db(
+        str(tmp_path / "buffer.sqlite"), replace=True
+    )
+    sgen_db.seed_all(conn)
+    t = np.linspace(0.0, 24.0, T_PTS)
+    n = sgen_db.precompute(conn, tier="core", t=t, meal_shift_count=2)
+    assert n == 15 * 3
+
+    base = conn.execute(
+        "SELECT scenario_id, descriptor_set, params FROM scenarios "
+        "WHERE meal_shift IS NULL ORDER BY scenario_id"
+    ).fetchall()
+    assert [r[0] for r in base] == list(range(15))
+    for sid, dset, params in base:
+        tm0 = json.loads(params)["tM"]
+        rows = conn.execute(
+            "SELECT meal_shift, params FROM scenarios "
+            "WHERE meal_shift IS NOT NULL AND descriptor_set = ? "
+            "ORDER BY scenario_id",
+            [dset],
+        ).fetchall()
+        assert len(rows) == 2
+        for shift, params_v in rows:
+            shift = json.loads(shift)
+            tm = json.loads(params_v)["tM"]
+            assert tm == [(a + d) % 24.0 for a, d in zip(tm0, shift)]
+    # lookup still resolves to the base scenario
+    hit = sgen_db.lookup_scenario(conn, meal_schedule="standard")
+    assert hit["scenario_id"] < 15

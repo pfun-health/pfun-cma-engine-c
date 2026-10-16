@@ -23,6 +23,7 @@ from __future__ import annotations
 
 import json
 import os
+import itertools
 import sqlite3
 from datetime import datetime, timezone
 
@@ -105,6 +106,7 @@ SCHEMA: tuple[str, ...] = (
         slug           TEXT UNIQUE NOT NULL,
         title          TEXT,
         descriptor_set TEXT NOT NULL,
+        meal_shift     TEXT,
         params         TEXT NOT NULL,
         n_meals        INTEGER NOT NULL,
         n_pts          INTEGER NOT NULL,
@@ -372,6 +374,41 @@ def generate_combinations(tier: str = "full") -> list[dict[str, str]]:
     raise ValueError(f"unknown tier {tier!r}; expected one of {TIERS}")
 
 
+def meal_shift_variants(
+    n_meals: int, *, step: float = 1.0, max_variants: int | None = 2
+) -> list[tuple[float, ...]]:
+    """Per-meal time offsets (hours) for alternative meal-timing scenarios.
+
+    Combinatorics: every meal is shifted by one of ``(-step, 0, +step)``,
+    i.e. ``3**n_meals - 1`` non-identity offset vectors.  They are ordered so
+    the two uniform shifts (all meals earlier / all meals later) come first,
+    followed by the remaining combinations by increasing number of shifted
+    meals (deterministic).  ``max_variants`` truncates the list (``None``
+    keeps all); the default of 2 yields exactly the -step/+step pair.
+    """
+    if n_meals < 1:
+        return []
+    uniform = [(-step,) * n_meals, (step,) * n_meals]
+    rest = [
+        v
+        for v in itertools.product((-step, 0.0, step), repeat=n_meals)
+        if any(v) and v not in uniform
+    ]
+    rest.sort(key=lambda v: (sum(1 for x in v if x), v))
+    out = uniform + rest
+    return out if max_variants is None else out[: max(0, max_variants)]
+
+
+def shift_suffix(shift: tuple[float, ...]) -> str:
+    """Deterministic slug suffix, e.g. ``-1.0_0.0_+1.0`` -> ``shift=m1_0_p1``."""
+    def f(x: float) -> str:
+        if x == 0:
+            return "0"
+        return ("p" if x > 0 else "m") + f"{abs(x):g}"
+
+    return "shift=" + "_".join(f(x) for x in shift)
+
+
 # ---------------------------------------------------------------------------
 # engine execution + summarization
 # ---------------------------------------------------------------------------
@@ -513,11 +550,20 @@ def precompute(
     progress: bool = False,
     meta_extra: dict[str, str] | None = None,
     on_progress=None,
+    meal_shift_count: int = 0,
+    meal_shift_step: float = 1.0,
 ) -> int:
     """Run the engine for every combination and store results in ``scenarios``.
 
     Returns the number of scenarios written.  Existing rows are replaced
     (the table is rebuilt per call, keeping determinism).
+
+    When ``meal_shift_count > 0`` every explicitly defined combination is
+    additionally expanded into that many alternative scenarios whose meal
+    onset times are offset by combinations of ``+/-meal_shift_step`` hours
+    (see :func:`meal_shift_variants`).  Base scenarios keep ids ``0..n-1``;
+    variants follow, share the base ``descriptor_set`` and are identified by
+    ``meal_shift`` (JSON list of hour offsets; NULL for base scenarios).
     """
     import numpy as np
 
@@ -534,26 +580,46 @@ def precompute(
     conn.execute("DELETE FROM scenarios")
     conn.execute("DELETE FROM scenario_refs")
 
-    n = len(combinations)
+    jobs: list[tuple[dict[str, str], tuple[float, ...] | None]] = [
+        (c, None) for c in combinations
+    ]
+    if meal_shift_count > 0:
+        for c in combinations:
+            n_meals = len(resolve_params(c)["tM"])
+            for shift in meal_shift_variants(
+                n_meals, step=meal_shift_step, max_variants=meal_shift_count
+            ):
+                jobs.append((c, shift))
+
+    n = len(jobs)
     written = 0
-    for i, combo in enumerate(combinations):
+    for i, (combo, shift) in enumerate(jobs):
         params = resolve_params(combo)
+        if shift is not None:
+            params["tM"] = tuple(
+                (tm + d) % 24.0 for tm, d in zip(params["tM"], shift)
+            )
         out = engine_run(params, t)
         summ = out["summary"]
 
         scenario_id = i
         slug = slug_for(combo)
+        title = title_for(combo)
+        if shift is not None:
+            slug += "__" + shift_suffix(shift)
+            title += " [" + ", ".join(f"{d:+g}h" for d in shift) + "]"
         desc_json = json.dumps(combo)
         params_json = json.dumps(_jsonable(params))
         summary_json = json.dumps(summ)
 
         conn.execute(
             "INSERT INTO scenarios (scenario_id, slug, title, descriptor_set, "
-            "params, n_meals, n_pts, t, G, g_meals, I_E, I_E_eff, L, m, c, c_mod, "
+            "meal_shift, params, n_meals, n_pts, t, G, g_meals, I_E, I_E_eff, L, m, c, c_mod, "
             "A, s_A, a_insulin, I_S, summary, status) "
-            "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'precomputed')",
+            "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'precomputed')",
             [
-                scenario_id, slug, title_for(combo), desc_json, params_json,
+                scenario_id, slug, title, desc_json,
+                None if shift is None else json.dumps(list(shift)), params_json,
                 int(len(params["tM"])), int(len(t)),
                 _arr(t),
                 _arr(out["G"]),
@@ -601,6 +667,9 @@ def precompute(
         "generator": "scenariogen",
         "tier": tier,
         "n_scenarios": str(written),
+        "n_base_scenarios": str(len(combinations)),
+        "meal_shift_count": str(meal_shift_count),
+        "meal_shift_step": str(meal_shift_step),
         "n_pts": str(len(t)),
         "t_start": str(float(t[0])),
         "t_end": str(float(t[-1])),
@@ -683,7 +752,8 @@ def lookup_scenario(conn, **descriptors) -> dict | None:
         return None
 
     rows = conn.execute(
-        "SELECT descriptor_set, summary, scenario_id FROM scenarios ORDER BY scenario_id"
+        "SELECT descriptor_set, summary, scenario_id FROM scenarios "
+        "WHERE meal_shift IS NULL ORDER BY scenario_id"
     ).fetchall()
 
     best = None

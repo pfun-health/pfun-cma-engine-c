@@ -1,4 +1,10 @@
-{ pkgs, lib, config, inputs, ... }:
+{
+  pkgs,
+  lib,
+  config,
+  inputs,
+  ...
+}:
 
 {
   packages = [
@@ -6,27 +12,32 @@
     pkgs.gnumake
     pkgs.gcc
     pkgs.pkg-config
+    pkgs.gsl
   ];
 
-  languages.python = {
-    enable = true;
-    package = pkgs.python311;
-    venv.enable = true;
-    uv = {
-      enable = true;
-      sync.enable = true;
-      sync.allGroups = true;
-    };
-  };
+  # languages.python = {
+  #   enable = true;
+  #   package = pkgs.python311;
+  #   venv.enable = true;
+  #   uv = {
+  #     enable = false;
+  #   };
+  # };
 
   languages.c.enable = true;
 
   enterShell = ''
+    echo "# pfun-cma-engine-c devenv shell..."
+    echo "-----------------------------------"
     python --version
     gcc --version | head -1
+    echo "==================================="
+    make clean all
+    echo "-----------------------------------"
+    make
   '';
 
   enterTest = ''
-    pytest
+    uv run pytest
   '';
 }
