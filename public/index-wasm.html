@@ -1,11 +1,116 @@
 <!DOCTYPE html>
-<html>
- <head>
-    <meta charset="UTF-8">
-    <title>PFun CMA Demo (WASM)</title>
+<html lang="en">
+<head>
+ <meta charset="UTF-8">
+ <title>PFun CMA Demo (WASM)</title>
+ <style>
+   body { font-family: sans-serif; margin: 1.5rem; max-width: 64rem; }
+   fieldset { margin-bottom: 1rem; }
+   label { display: inline-block; min-width: 7rem; margin: 0.2rem 0; }
+   input[type="number"] { width: 6rem; }
+   .row { display: inline-block; margin-right: 1rem; }
+   pre { background: #111; color: #eee; padding: 0.8rem; overflow: auto; }
+   #status { margin-bottom: 1rem; color: #555; }
+ </style>
 </head>
- <body>
+<body>
  <h1>PFun CMA Demo (WASM)</h1>
+ <p id="status">Loading wasm module…</p>
+
+ <form id="demo-form">
+   <fieldset>
+     <legend>Core parameters</legend>
+     <div class="row"><label for="d">d</label><input id="d" type="number" step="0.1" value="1.0"></div>
+     <div class="row"><label for="taup">taup</label><input id="taup" type="number" step="0.1" value="1.2"></div>
+     <div class="row"><label for="taug">taug_val</label><input id="taug" type="number" step="0.1" value="1.0"></div>
+     <div class="row"><label for="B">B</label><input id="B" type="number" step="0.01" value="0.05"></div>
+     <div class="row"><label for="Cm">Cm</label><input id="Cm" type="number" step="0.05" value="0.0"></div>
+     <div class="row"><label for="toff">toff</label><input id="toff" type="number" step="0.1" value="0.0"></div>
+   </fieldset>
+
+   <fieldset>
+     <legend>Meals and simulation</legend>
+     <div class="row"><label for="tm0">tM[0]</label><input id="tm0" type="number" step="0.5" value="7.0"></div>
+     <div class="row"><label for="tm1">tM[1]</label><input id="tm1" type="number" step="0.5" value="11.0"></div>
+     <div class="row"><label for="tm2">tM[2]</label><input id="tm2" type="number" step="0.5" value="17.5"></div>
+     <div class="row"><label for="npts">N pts</label><input id="npts" type="number" step="1" min="2" max="512" value="97"></div>
+     <div class="row"><label for="activity">activity</label><input id="activity" type="checkbox"></div>
+     <div class="row"><label for="Aamp">A_amp</label><input id="Aamp" type="number" step="0.05" value="0.4"></div>
+     <div class="row"><label for="noise">noise</label><input id="noise" type="checkbox"></div>
+   </fieldset>
+
+   <button type="submit" disabled id="run-btn">Run model</button>
+ </form>
+
+ <h2>Output</h2>
+ <pre id="output">Run the model to view results.</pre>
+
+ <script>
+   let wasmReady = false;
+   const status = document.getElementById("status");
+   const runBtn = document.getElementById("run-btn");
+   const output = document.getElementById("output");
+
+   function n(id) { return Number(document.getElementById(id).value); }
+
+   function renderSummary(npts) {
+     let minG = Number.POSITIVE_INFINITY;
+     let maxG = Number.NEGATIVE_INFINITY;
+     const step = Math.max(1, Math.floor(npts / 24));
+     const lines = ["t(h)\tG\tI_E\tc\tA"];
+
+     for (let i = 0; i < npts; i++) {
+       const g = Module.ccall("wasm_get_series_value", "number", ["number", "number"], [0, i]);
+       if (g < minG) minG = g;
+       if (g > maxG) maxG = g;
+
+       if (i % step === 0 || i === npts - 1) {
+         const t = Module.ccall("wasm_get_t", "number", ["number"], [i]);
+         const ie = Module.ccall("wasm_get_series_value", "number", ["number", "number"], [1, i]);
+         const c = Module.ccall("wasm_get_series_value", "number", ["number", "number"], [2, i]);
+         const a = Module.ccall("wasm_get_series_value", "number", ["number", "number"], [3, i]);
+         lines.push(`${t.toFixed(2)}\t${g.toFixed(4)}\t${ie.toFixed(4)}\t${c.toFixed(4)}\t${a.toFixed(4)}`);
+       }
+     }
+
+     output.textContent =
+       `N=${npts} points\n` +
+       `G range: ${minG.toFixed(4)} .. ${maxG.toFixed(4)}\n\n` +
+       lines.join("\n");
+   }
+
+   document.getElementById("demo-form").addEventListener("submit", (event) => {
+     event.preventDefault();
+     if (!wasmReady) return;
+
+     const npts = Module.ccall(
+       "wasm_run_model",
+       "number",
+       ["number", "number", "number", "number", "number", "number", "number", "number", "number", "number", "number", "number", "number"],
+       [
+         n("d"), n("taup"), n("taug"), n("B"), n("Cm"), n("toff"),
+         n("tm0"), n("tm1"), n("tm2"), n("npts"),
+         document.getElementById("activity").checked ? 1 : 0,
+         n("Aamp"),
+         document.getElementById("noise").checked ? 1 : 0
+       ]
+     );
+
+     if (npts <= 0) {
+       output.textContent = "Model run failed.";
+       return;
+     }
+     renderSummary(npts);
+   });
+
+   window.Module = {
+     onRuntimeInitialized() {
+       wasmReady = true;
+       runBtn.disabled = false;
+       status.textContent = "WASM loaded. Configure parameters and run the model.";
+     }
+   };
+ </script>
  <script src="demo-wasm.js"></script>
- </body>
+</body>
 </html>

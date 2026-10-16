@@ -100,8 +100,12 @@ python-setup-dev :  ## (dev) Setup python environment using uv
 	. ./.venv/bin/activate
 
 .PHONY: demo-wasm
-demo-wasm : demo  ## compile demo to wasm binary using emscripten, output to BUILD_DIR/demo-wasm.html
-	emcc -g2 -I$(INCLUDE_DIR) -I$(NUKLEAR_DIR) -L$(BUILD_DIR) $(DEMO_C_DIR)/demo.c $(DEMO_C_DIR)/term.c $(SRC_DIR)/pfun_cma_engine.c -o public/demo-wasm.html
+demo-wasm:  ## Build minimal browser wasm demo assets at public/demo-wasm.{js,wasm}
+	emcc -O2 -I$(INCLUDE_DIR) -I$(SRC_DIR) \
+	  $(DEMO_C_DIR)/wasm_demo.c $(SRC_DIR)/pfun_cma_engine.c -o public/demo-wasm.js \
+	  -sALLOW_MEMORY_GROWTH=1 \
+	  -sEXPORTED_FUNCTIONS='["_wasm_run_model","_wasm_get_npts","_wasm_get_t","_wasm_get_series_value"]' \
+	  -sEXPORTED_RUNTIME_METHODS='["ccall"]'
 
 # Capture demo session output to markdown
 .PHONY: demo-py-output demo-c-output demo-ts-output demo-morning-run demo-evening-party outputs npm-setup
