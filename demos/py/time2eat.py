@@ -56,17 +56,44 @@ def fmt_clock(h: float) -> str:
 
 
 def load_curves(db_path: str, scenarios: list[dict]) -> None:
-    """Attach glucose curve and meal times (tM) to each scenario dict."""
+    """Attach glucose curve, meal times (tM) and +/-shift variants.
+
+    Each base scenario gets ``variants``: the pre-computed alternative
+    scenarios with shifted mealtimes (same descriptor set, ``meal_shift``
+    not NULL), built by ``build_scenario_db.py --meal-shifts``.
+    """
     conn = sqlite3.connect(db_path)
     rows = {
         r[0]: r
         for r in conn.execute("SELECT scenario_id, G, params FROM scenarios")
+    }
+    by_desc: dict[str, list[dict]] = {}
+    for sid, title, dset, shift, g, params in conn.execute(
+        "SELECT scenario_id, title, descriptor_set, meal_shift, G, params "
+        "FROM scenarios WHERE meal_shift IS NOT NULL ORDER BY scenario_id"
+    ):
+        by_desc.setdefault(dset, []).append(
+            {
+                "id": sid,
+                "title": title,
+                "shift": json.loads(shift),
+                "G": np.asarray(json.loads(g), dtype=float),
+                "tM": [float(x) for x in json.loads(params)["tM"]],
+            }
+        )
+    base_desc = {
+        r[0]: r[1]
+        for r in conn.execute(
+            "SELECT scenario_id, descriptor_set FROM scenarios "
+            "WHERE meal_shift IS NULL"
+        )
     }
     conn.close()
     for s in scenarios:
         _, g, params = rows[s["id"]]
         s["G"] = np.asarray(json.loads(g), dtype=float)
         s["tM"] = [float(x) for x in json.loads(params)["tM"]]
+        s["variants"] = by_desc.get(base_desc[s["id"]], [])
 
 
 def reference_range(scenarios: list[dict]) -> tuple[float, float]:
@@ -102,15 +129,14 @@ def recommend(scenarios, hits, lo: float, hi: float) -> dict:
 
     best = None
     for i, sim in cand.items():
-        s = scenarios[i]
-        tir = time_in_range(s["G"], lo, hi)
         weight = float(np.exp((sim - anchor_sim) / SIM_TEMPERATURE))
-        score = tir * weight
-        if best is None or score > best["score"]:
-            best = {"index": i, "tir": tir, "score": score, "sim": sim}
+        for s in [scenarios[i], *scenarios[i].get("variants", [])]:
+            tir = time_in_range(s["G"], lo, hi)
+            score = tir * weight
+            if best is None or score > best["score"]:
+                best = {"scenario": s, "tir": tir, "score": score, "sim": sim}
     best["anchor"] = anchor
     best["anchor_tir"] = time_in_range(anchor["G"], lo, hi)
-    best["scenario"] = scenarios[best["index"]]
     return best
 
 

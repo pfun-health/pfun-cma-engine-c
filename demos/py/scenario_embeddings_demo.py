@@ -31,6 +31,7 @@ DEFAULT_DB = os.path.join(ROOT, "data", "scenario_buffer.sqlite")
 
 
 def load_scenarios(db_path: str) -> list[dict]:
+    """Load base scenarios (meal-shift variants are excluded from the corpus)."""
     if not os.path.exists(db_path):
         sys.exit(f"Scenario DB not found: {db_path} (run `make scenario-db`)")
     conn = sqlite3.connect(db_path)
@@ -42,7 +43,7 @@ def load_scenarios(db_path: str) -> list[dict]:
     out = []
     for r in conn.execute(
         "SELECT scenario_id, slug, title, descriptor_set, summary FROM scenarios"
-        " ORDER BY scenario_id"
+        " WHERE meal_shift IS NULL ORDER BY scenario_id"
     ):
         dset = json.loads(r["descriptor_set"])
         summ = json.loads(r["summary"]) if r["summary"] else {}
