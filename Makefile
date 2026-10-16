@@ -183,7 +183,15 @@ GSL_CFLAGS := $(shell pkg-config --cflags gsl 2>/dev/null)
 GSL_LIBS := $(shell pkg-config --libs gsl 2>/dev/null || echo -lgsl -lgslcblas)
 CGM_SRCS := $(SRC_DIR)/pfun_cma_engine.c $(SRC_DIR)/pfun_cma_cgm.c $(SRC_DIR)/fit/pfun_cma_fit.c
 
-.PHONY: cgm-ingest cgm-fit test-cgm
+CGM_SOURCE ?= pfun-sample
+CGM_OUT ?= data/cgm/$(CGM_SOURCE).csv
+
+.PHONY: fetch-cgm cgm-ingest cgm-fit test-cgm
+fetch-cgm:  ## Download CGM sample data (CGM_SOURCE=pfun-sample|ohio-t1dm|url, CGM_URL=, CGM_PATH=, CGM_USER=, CGM_SHA256=, CGM_OUT=)
+	$(PYTHON) tools/fetch_cgm_data.py --source $(CGM_SOURCE) --out $(CGM_OUT) \
+	  $(if $(CGM_URL),--url $(CGM_URL)) $(if $(CGM_PATH),--path $(CGM_PATH)) \
+	  $(if $(CGM_USER),--user-id $(CGM_USER)) $(if $(CGM_SHA256),--sha256 $(CGM_SHA256))
+
 cgm-ingest: $(BUILD_DIR)/cgm_fit  ## Ingest CGM CSV (CGM=path, N=samples) -> normalized/resampled CSV on stdout
 	$(BUILD_DIR)/cgm_fit --ingest-only $(or $(CGM),tests/data/sample_cgm.csv) $(or $(N),1024)
 

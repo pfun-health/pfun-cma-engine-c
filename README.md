@@ -126,3 +126,13 @@ Requires [GSL](https://www.gnu.org/software/gsl/) (`libgsl-dev`).
 - `make cgm-ingest CGM=path.csv N=1024`: C port of pfun-cma-model's `format_data` (ISO8601 time parsing/tz offset, unit guessing, glucose normalization to [0, 2], resample to N bins, linear interpolation of gaps). CSV needs a time column (`time`/`ts_utc`/`ts_local`/`systemTime`/`displayTime`) and a `value` (or `sg`) column.
 - `make cgm-fit CGM=path.csv N=1024`: fits `d, taup, taug, B, Cm, toff` using GSL nonlinear least squares (Levenberg-Marquardt, bounds enforced via a sine transform).
 - `make test-cgm`: tests both. API: `include/pfun_cma_engine/pfun_cma_cgm.h`.
+
+### Downloading sample CGM data
+
+`make fetch-cgm` (via `tools/fetch_cgm_data.py`, stdlib only) writes a `time,value` CSV to `data/cgm/<source>.csv` (git-ignored), ready for `make cgm-fit CGM=...`:
+
+- `make fetch-cgm` / `CGM_SOURCE=pfun-sample [CGM_USER=<user_id>]`: `valid_data.csv` from `pfun-health/pfun-data` (same file pfun-cma-model downloads); first user by default.
+- `CGM_SOURCE=ohio-t1dm CGM_PATH=file.xml` (or `CGM_URL=https://...`): OhioT1DM XML. The dataset requires a data use agreement, so there is no public URL; supply your licensed copy.
+- `CGM_SOURCE=url CGM_URL=https://...`: any CSV with a time column (`time`/`ts_local`/`ts_utc`) and a `value`/`sg`/`glucose` column.
+
+Optional `CGM_SHA256=` verifies the raw download; `CGM_OUT=` overrides the output path.
