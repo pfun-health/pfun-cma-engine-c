@@ -14,6 +14,14 @@
 static const double R_MGDL[3] = {70.0, 180.0, 90.0};
 static const double R_MMOLL[3] = {3.7, 11.0, 4.77};
 
+/**
+ * Infer whether glucose readings are in mg/dL or mmol/L by comparing their
+ * minimum, maximum, and mean with reference values for each unit.
+ *
+ * @param v Glucose readings to classify
+ * @param n Number of readings
+ * @return 1 for mmol/L, 0 for mg/dL, or 0 if no readings are usable
+ */
 int pfun_guess_glucose_units(const double *v, int n) {
   double mn = INFINITY, mx = -INFINITY, sum = 0.0;
   int cnt = 0;
@@ -36,6 +44,13 @@ int pfun_guess_glucose_units(const double *v, int n) {
   return d0 < d1 ? 0 : 1;
 }
 
+/**
+ * Map a raw glucose reading to the model's normalized [0, 2] scale.
+ *
+ * @param G Raw glucose value
+ * @param mmoll Nonzero if G is in mmol/L; otherwise G is in mg/dL
+ * @return Normalized glucose value
+ */
 double pfun_normalize_glucose(double G, int mmoll) {
   const double *r = mmoll ? R_MMOLL : R_MGDL;
   double g0 = r[0], g1 = r[1], gs = r[2];
@@ -44,6 +59,14 @@ double pfun_normalize_glucose(double G, int mmoll) {
   return 2.0 / (1.0 + exp(-2.0 * x));
 }
 
+/**
+ * Convert a Gregorian calendar date to days relative to 1970-01-01.
+ *
+ * @param y Year
+ * @param m Month in [1, 12]
+ * @param d Day of month
+ * @return Signed number of days from the Unix epoch date
+ */
 static long days_from_civil(long y, unsigned m, unsigned d) {
   y -= m <= 2;
   long era = (y >= 0 ? y : y - 399) / 400;
@@ -53,6 +76,14 @@ static long days_from_civil(long y, unsigned m, unsigned d) {
   return era * 146097 + (long)doe - 719468;
 }
 
+/**
+ * Parse an ISO 8601 local timestamp and its optional UTC offset.
+ *
+ * @param s Timestamp string
+ * @param out_epoch Receives UTC seconds since 1970-01-01
+ * @param out_tod Receives the timestamp's local time of day in decimal hours
+ * @return 0 on success, or -1 if the timestamp is invalid
+ */
 int pfun_parse_iso8601(const char *s, double *out_epoch, double *out_tod) {
   int Y, M, D, h, m;
   double sec = 0.0;
@@ -94,11 +125,23 @@ int pfun_parse_iso8601(const char *s, double *out_epoch, double *out_tod) {
 }
 
 static const double *cmp_epoch;
+/**
+ * Compare sample indices by their corresponding epoch timestamps.
+ *
+ * @param a Pointer to the first sample index
+ * @param b Pointer to the second sample index
+ * @return Negative, zero, or positive according to timestamp ordering
+ */
 static int cmp_idx(const void *a, const void *b) {
   double x = cmp_epoch[*(const int *)a], y = cmp_epoch[*(const int *)b];
   return (x > y) - (x < y);
 }
 
+/**
+ * Release all arrays owned by a CGM data result and reset its fields.
+ *
+ * @param d Result to release; NULL is ignored
+ */
 void pfun_cgm_data_free(pfun_cgm_data *d) {
   if (!d)
     return;
@@ -109,6 +152,17 @@ void pfun_cgm_data_free(pfun_cgm_data *d) {
   memset(d, 0, sizeof(*d));
 }
 
+/**
+ * Sort, normalize, bin, and interpolate raw CGM samples into a result.
+ *
+ * @param epoch UTC epoch seconds for each sample
+ * @param tod Local time of day in decimal hours for each sample
+ * @param value Raw glucose values
+ * @param n Number of input samples
+ * @param N Number of output bins
+ * @param out Receives the allocated formatted data on success
+ * @return 0 on success, or -1 on invalid input or allocation/format failure
+ */
 int pfun_cgm_format(const double *epoch, const double *tod, const double *value,
                     int n, int N, pfun_cgm_data *out) {
   if (!epoch || !tod || !value || !out || n < 2 || N < 2)
@@ -202,7 +256,14 @@ fail:
   return -1;
 }
 
-/* split a CSV line in-place into fields (handles simple double quotes) */
+/**
+ * Split a CSV line in place into fields, supporting simple quoted fields.
+ *
+ * @param line Input line, modified by inserting null terminators
+ * @param f Receives pointers to the fields
+ * @param max Maximum number of field pointers to write
+ * @return Number of fields written
+ */
 static int split_csv(char *line, char **f, int max) {
   int n = 0;
   char *p = line;
@@ -223,6 +284,14 @@ static int split_csv(char *line, char **f, int max) {
   return n;
 }
 
+/**
+ * Read timestamp and glucose columns from a CSV and format the samples.
+ *
+ * @param path CSV file path
+ * @param N Number of output bins
+ * @param out Receives the allocated formatted data on success
+ * @return 0 on success, or -1 if the file, columns, data, or formatting fail
+ */
 int pfun_cgm_read_csv(const char *path, int N, pfun_cgm_data *out) {
   FILE *fp = fopen(path, "r");
   if (!fp)
