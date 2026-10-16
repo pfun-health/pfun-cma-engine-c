@@ -101,7 +101,7 @@ python-setup-dev :  ## (dev) Setup python environment using uv
 
 .PHONY: demo-wasm
 demo-wasm : demo  ## compile demo to wasm binary using emscripten, output to BUILD_DIR/demo-wasm.html
-	emcc -g2 -I$(INCLUDE_DIR) -I$(NUKLEAR_DIR) -L$(BUILD_DIR) $(SRC_DIR)/*.c $(DEMO_C_DIR)/*.c -o public/demo-wasm.html
+	emcc -g2 -I$(INCLUDE_DIR) -I$(NUKLEAR_DIR) -L$(BUILD_DIR) $(DEMO_C_DIR)/demo.c $(DEMO_C_DIR)/term.c $(SRC_DIR)/pfun_cma_engine.c -o public/demo-wasm.html
 
 # Capture demo session output to markdown
 .PHONY: demo-py-output demo-c-output demo-ts-output demo-morning-run demo-evening-party outputs npm-setup

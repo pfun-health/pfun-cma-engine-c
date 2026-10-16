@@ -1,11 +1,15 @@
 /* test_cgm.c: CGM ingestion + GSL curve fit test. Run via `make test-cgm`. */
 #include <math.h>
 #include <stdio.h>
+
+#include <gsl/gsl_errno.h>
+
 #include "pfun_cma_engine/pfun_cma_cgm.h"
 
 #define CHECK(c) do { if (!(c)) { printf("FAIL: %s (line %d)\n", #c, __LINE__); return 1; } } while (0)
 
 int main(void) {
+  gsl_set_error_handler_off();
   double e, tod;
   CHECK(pfun_parse_iso8601("2024-03-05T08:30:00-05:00", &e, &tod) == 0);
   CHECK(fabs(tod - 8.5) < 1e-9);

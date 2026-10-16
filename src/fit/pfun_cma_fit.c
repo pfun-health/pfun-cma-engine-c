@@ -128,13 +128,11 @@ int pfun_cma_fit(const double *t, const double *G, int N, const double *tM,
   for (int k = 0; k < NP; k++)
     gsl_vector_set(x0, k, to_unbounded(k, MID[k]));
 
-  gsl_error_handler_t *old = gsl_set_error_handler_off();
   int info = 0;
   int status = gsl_multifit_nlinear_init(x0, &fdf, w);
   if (status == GSL_SUCCESS)
     status = gsl_multifit_nlinear_driver(200, 1e-8, 1e-8, 1e-8, NULL, NULL,
                                          &info, w);
-  gsl_set_error_handler(old);
 
   gsl_vector *x = gsl_multifit_nlinear_position(w);
   for (int k = 0; k < NP; k++)

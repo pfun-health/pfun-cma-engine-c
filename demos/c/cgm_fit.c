@@ -7,9 +7,12 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include <gsl/gsl_errno.h>
+
 #include "pfun_cma_engine/pfun_cma_cgm.h"
 
 int main(int argc, char **argv) {
+  gsl_set_error_handler_off();
   int ingest_only = argc > 1 && !strcmp(argv[1], "--ingest-only");
   int a = ingest_only ? 2 : 1;
   if (argc <= a) {

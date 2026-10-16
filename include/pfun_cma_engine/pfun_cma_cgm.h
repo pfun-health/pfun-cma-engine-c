@@ -55,7 +55,9 @@ int pfun_estimate_mealtimes(const double *t, const double *G, int N,
                             int n_meals, double *out_tM);
 /* Fit the CMA model to (t, G) with fixed meal times via GSL nonlinear least
  * squares (Levenberg-Marquardt, params bounded by a sine transform).
- * Returns 0 on success. */
+ * The application must call gsl_set_error_handler_off() once during startup,
+ * before calling this function; fitting does not modify GSL's process-global
+ * error handler. Returns 0 on success. */
 int pfun_cma_fit(const double *t, const double *G, int N, const double *tM,
                  int n_meals, pfun_fit_result *out);
 
