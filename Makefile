@@ -101,7 +101,7 @@ python-setup-dev :  ## (dev) Setup python environment using uv
 
 .PHONY: demo-wasm
 demo-wasm : demo  ## compile demo to wasm binary using emscripten, output to BUILD_DIR/demo-wasm.html
-	emcc -g2 -I$(INCLUDE_DIR) -I$(NUKLEAR_DIR) -L$(BUILD_DIR) $(SRC_DIR)/*.c $(DEMO_C_DIR)/*.c -o public/demo-wasm.html
+	emcc -g2 -I$(INCLUDE_DIR) -I$(NUKLEAR_DIR) -L$(BUILD_DIR) $(DEMO_C_DIR)/demo.c $(DEMO_C_DIR)/term.c $(SRC_DIR)/pfun_cma_engine.c -o public/demo-wasm.html
 
 # Capture demo session output to markdown
 .PHONY: demo-py-output demo-c-output demo-ts-output demo-morning-run demo-evening-party outputs npm-setup
@@ -176,6 +176,34 @@ test-precision: all  ## Check FP32/FP16 boundary precision against FP64
 
 precision-report: all  ## Generate the model precision assessment report
 	$(PYTHON) tools/precision_report.py
+
+# ── CGM ingestion + curve fitting (GSL nonlinear least squares) ──────────────
+
+GSL_CFLAGS := $(shell pkg-config --cflags gsl 2>/dev/null)
+GSL_LIBS := $(shell pkg-config --libs gsl 2>/dev/null || echo -lgsl -lgslcblas)
+CGM_SRCS := $(SRC_DIR)/pfun_cma_engine.c $(SRC_DIR)/pfun_cma_cgm.c $(SRC_DIR)/fit/pfun_cma_fit.c
+
+CGM_SOURCE ?= pfun-sample
+CGM_OUT ?= data/cgm/$(CGM_SOURCE).csv
+
+.PHONY: fetch-cgm cgm-ingest cgm-fit test-cgm
+fetch-cgm:  ## Download CGM sample data (CGM_SOURCE=pfun-sample|ohio-t1dm|url, CGM_URL=, CGM_PATH=, CGM_USER=, CGM_SHA256=, CGM_OUT=)
+	$(PYTHON) tools/fetch_cgm_data.py --source "$(CGM_SOURCE)" --out "$(CGM_OUT)" \
+	  $(if $(CGM_URL),--url "$(CGM_URL)") $(if $(CGM_PATH),--path "$(CGM_PATH)") \
+	  $(if $(CGM_USER),--user-id "$(CGM_USER)") $(if $(CGM_SHA256),--sha256 "$(CGM_SHA256)")
+
+cgm-ingest: $(BUILD_DIR)/cgm_fit  ## Ingest CGM CSV (CGM=path, N=samples) -> normalized/resampled CSV on stdout
+	$(BUILD_DIR)/cgm_fit --ingest-only "$(or $(CGM),tests/data/sample_cgm.csv)" "$(or $(N),1024)"
+
+cgm-fit: $(BUILD_DIR)/cgm_fit  ## Fit CMA model to CGM CSV with GSL nonlinear least squares (CGM=path, N=samples)
+	$(BUILD_DIR)/cgm_fit "$(or $(CGM),tests/data/sample_cgm.csv)" "$(or $(N),1024)"
+
+$(BUILD_DIR)/cgm_fit: $(DEMO_C_DIR)/cgm_fit.c $(CGM_SRCS) $(INCLUDE_DIR)/pfun_cma_engine/pfun_cma_cgm.h | directories
+	$(CC) $(CFLAGS) $(GSL_CFLAGS) -I$(INCLUDE_DIR) -o $@ $(DEMO_C_DIR)/cgm_fit.c $(CGM_SRCS) $(GSL_LIBS) $(LDFLAGS)
+
+test-cgm: | directories  ## Test CGM ingestion and GSL fitting
+	$(CC) $(CFLAGS) $(GSL_CFLAGS) -pthread -I$(INCLUDE_DIR) -o $(BUILD_DIR)/test_cgm tests/test_cgm.c $(CGM_SRCS) $(GSL_LIBS) $(LDFLAGS)
+	$(BUILD_DIR)/test_cgm
 
 # ── LLVM IR Tooling ──────────────────────────────────────────────────────────
 
@@ -276,4 +304,4 @@ ir-metrics: $(LLVM_IR)  ## Check IR metrics against golden reference values
 analyze-all: analyze-ir optimize-ir profile-ir ir-metrics llvm-targets  ## Run all LLVM-related analysis targets
 
 .PHONY: test
-test: test-llvm check-ir test-scenariogen test-precision  ## Update the test target to run LLVM tests and the scenariogen suites too
+test: test-llvm check-ir test-scenariogen test-precision test-cgm  ## Update the test target to run LLVM tests and the scenariogen suites too
