@@ -11,6 +11,9 @@ LDFLAGS := -lm
 # Python interpreter for demo scripts (prefer project venv)
 PYTHON := $(if $(wildcard .venv/bin/python),.venv/bin/python,$(if $(shell command -v uv 2>/dev/null),uv run python,python3))
 
+# uv package manager (explicit setting to avoid issues with competing local installations)
+UV := /usr/bin/uv
+
 # Nuklear
 NUKLEAR_DIR := third_party/nuklear
 NUKLEAR_HEADER := $(NUKLEAR_DIR)/nuklear.h
@@ -93,11 +96,11 @@ check-format:  ## check code formatting using clang-format
 	clang-format --dry-run -Werror $(SRC_DIR)/*.c $(SRC_DIR)/*.h 2>/dev/null || echo "clang-format not available"
 
 .PHONY: python-setup python-setup-dev
-python-setup :  ## Setup python environment using uv (runtime dependencies only)
-	uv sync
+python-setup :  ## Setup python environment using $(UV) (runtime dependencies only)
+	$(UV) sync
 	. ./.venv/bin/activate
-python-setup-dev :  ## (dev) Setup python environment using uv
-	uv sync --dev --all-extras
+python-setup-dev :  ## (dev) Setup python environment using $(UV)
+	$(UV) sync --dev --all-extras
 	. ./.venv/bin/activate
 
 .PHONY: demo-wasm
@@ -159,7 +162,7 @@ scenario-db-core:
 
 scenario-db:  ## Build the scenario database (precompute labeled scenarios using the compiled pfun-cma-engine libs)
 	@mkdir -p data
-	$(PYTHON) $(DEMO_PY_DIR)/build_scenario_db.py --db $(SCENARIO_DB) --tier full --pts 193
+	$(if [ -f $(SCENARIO_DB) ], @echo [Cached] existing scenario_db detected, $(shell command $(PYTHON) $(DEMO_PY_DIR)/build_scenario_db.py --db $(SCENARIO_DB) --tier full --pts 193))
 
 query-demo: scenario-db  ## Query the default demo from the scenario database (and build the database if not already built)
 	$(PYTHON) $(DEMO_PY_DIR)/query_scenario_db.py --db $(SCENARIO_DB) \
@@ -167,10 +170,10 @@ query-demo: scenario-db  ## Query the default demo from the scenario database (a
 	  --meal-schedule standard --summary-only --timecourse --references
 
 demo-scenario-embeddings: scenario-db  ## Interactive semantic search over scenario DB (BGE embeddings + cosine similarity)
-	uv run --group demo python $(DEMO_PY_DIR)/scenario_embeddings_demo.py --db $(SCENARIO_DB)
+	$(UV) run --group demo python $(DEMO_PY_DIR)/scenario_embeddings_demo.py --db $(SCENARIO_DB)
 
 demo-time2eat: scenario-db  ## /time2eat: recommend mealtimes from nearest scenario embedding (usage: make demo-time2eat Q="poor sleep, late dinner")
-	uv run --group demo python $(DEMO_PY_DIR)/time2eat.py --db $(SCENARIO_DB) "/time2eat $(Q)"
+	$(UV) run --group demo python $(DEMO_PY_DIR)/time2eat.py --db $(SCENARIO_DB) "/time2eat $(Q)"
 
 test-scenariogen:  ## Test scenario generation
 	$(PYTHON) -m pytest tests/test_scenariogen.py tests/test_scenario_db.py -q

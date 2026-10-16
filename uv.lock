@@ -475,7 +475,7 @@ dependencies = [
 [package.dev-dependencies]
 demo = [
     { name = "fastembed" },
-    { name = "onnxruntime", marker = "platform_machine == 'x86_64' and sys_platform == 'linux'" },
+    { name = "onnxruntime", marker = "platform_machine == 'x86_64' and sys_platform == 'manylinux'" },
 ]
 dev = [
     { name = "matplotlib" },
@@ -493,7 +493,7 @@ requires-dist = [
 [package.metadata.requires-dev]
 demo = [
     { name = "fastembed", specifier = ">=0.9.0" },
-    { name = "onnxruntime", marker = "platform_machine == 'x86_64' and sys_platform == 'linux'" },
+    { name = "onnxruntime", marker = "platform_machine == 'x86_64' and sys_platform == 'manylinux'", specifier = "==1.31.0" },
 ]
 dev = [
     { name = "matplotlib", specifier = ">=3.11.0" },
