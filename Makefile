@@ -188,15 +188,15 @@ CGM_OUT ?= data/cgm/$(CGM_SOURCE).csv
 
 .PHONY: fetch-cgm cgm-ingest cgm-fit test-cgm
 fetch-cgm:  ## Download CGM sample data (CGM_SOURCE=pfun-sample|ohio-t1dm|url, CGM_URL=, CGM_PATH=, CGM_USER=, CGM_SHA256=, CGM_OUT=)
-	$(PYTHON) tools/fetch_cgm_data.py --source $(CGM_SOURCE) --out $(CGM_OUT) \
-	  $(if $(CGM_URL),--url $(CGM_URL)) $(if $(CGM_PATH),--path $(CGM_PATH)) \
-	  $(if $(CGM_USER),--user-id $(CGM_USER)) $(if $(CGM_SHA256),--sha256 $(CGM_SHA256))
+	$(PYTHON) tools/fetch_cgm_data.py --source "$(CGM_SOURCE)" --out "$(CGM_OUT)" \
+	  $(if $(CGM_URL),--url "$(CGM_URL)") $(if $(CGM_PATH),--path "$(CGM_PATH)") \
+	  $(if $(CGM_USER),--user-id "$(CGM_USER)") $(if $(CGM_SHA256),--sha256 "$(CGM_SHA256)")
 
 cgm-ingest: $(BUILD_DIR)/cgm_fit  ## Ingest CGM CSV (CGM=path, N=samples) -> normalized/resampled CSV on stdout
-	$(BUILD_DIR)/cgm_fit --ingest-only $(or $(CGM),tests/data/sample_cgm.csv) $(or $(N),1024)
+	$(BUILD_DIR)/cgm_fit --ingest-only "$(or $(CGM),tests/data/sample_cgm.csv)" "$(or $(N),1024)"
 
 cgm-fit: $(BUILD_DIR)/cgm_fit  ## Fit CMA model to CGM CSV with GSL nonlinear least squares (CGM=path, N=samples)
-	$(BUILD_DIR)/cgm_fit $(or $(CGM),tests/data/sample_cgm.csv) $(or $(N),1024)
+	$(BUILD_DIR)/cgm_fit "$(or $(CGM),tests/data/sample_cgm.csv)" "$(or $(N),1024)"
 
 $(BUILD_DIR)/cgm_fit: $(DEMO_C_DIR)/cgm_fit.c $(CGM_SRCS) $(INCLUDE_DIR)/pfun_cma_engine/pfun_cma_cgm.h | directories
 	$(CC) $(CFLAGS) $(GSL_CFLAGS) -I$(INCLUDE_DIR) -o $@ $(DEMO_C_DIR)/cgm_fit.c $(CGM_SRCS) $(GSL_LIBS) $(LDFLAGS)

@@ -130,9 +130,15 @@ int pfun_cma_fit(const double *t, const double *G, int N, const double *tM,
 
   int info = 0;
   int status = gsl_multifit_nlinear_init(x0, &fdf, w);
-  if (status == GSL_SUCCESS)
-    status = gsl_multifit_nlinear_driver(200, 1e-8, 1e-8, 1e-8, NULL, NULL,
-                                         &info, w);
+  if (status != GSL_SUCCESS) {
+    out->status = status;
+    gsl_multifit_nlinear_free(w);
+    gsl_vector_free(x0);
+    free(ctx.buf);
+    return -1;
+  }
+  status = gsl_multifit_nlinear_driver(200, 1e-8, 1e-8, 1e-8, NULL, NULL,
+                                       &info, w);
 
   gsl_vector *x = gsl_multifit_nlinear_position(w);
   for (int k = 0; k < NP; k++)
