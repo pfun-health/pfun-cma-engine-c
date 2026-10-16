@@ -13,15 +13,6 @@ Instructions for building the C library, Python package, and running demos.
 - **uv** or pip (for Python package)
 - **DuckDB** >= 1.5 Python package (scenario buffer; installed via `uv sync --dev`)
 
-### Nix / devenv (optional)
-
-A `flake.nix` provides a reproducible shell (Python 3.11, uv, gcc, make, pkg-config).
-It syncs the uv environment on entry.
-
-```sh
-nix develop --no-pure-eval   # or: echo 'use flake . --impure' > .envrc && direnv allow
-```
-
 ### Install uv
 
 ```sh
