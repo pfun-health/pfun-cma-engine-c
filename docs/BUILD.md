@@ -124,6 +124,15 @@ make demo
 ./build/demo
 ```
 
+### WebAssembly demo (form UI)
+
+Requires Emscripten (`emcc`) in `PATH`.
+
+```sh
+make demo-wasm
+# then open public/index-wasm.html in a browser
+```
+
 ### Tracked output snapshots
 
 ```sh
