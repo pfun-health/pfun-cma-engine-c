@@ -202,7 +202,7 @@ $(BUILD_DIR)/cgm_fit: $(DEMO_C_DIR)/cgm_fit.c $(CGM_SRCS) $(INCLUDE_DIR)/pfun_cm
 	$(CC) $(CFLAGS) $(GSL_CFLAGS) -I$(INCLUDE_DIR) -o $@ $(DEMO_C_DIR)/cgm_fit.c $(CGM_SRCS) $(GSL_LIBS) $(LDFLAGS)
 
 test-cgm: | directories  ## Test CGM ingestion and GSL fitting
-	$(CC) $(CFLAGS) $(GSL_CFLAGS) -I$(INCLUDE_DIR) -o $(BUILD_DIR)/test_cgm tests/test_cgm.c $(CGM_SRCS) $(GSL_LIBS) $(LDFLAGS)
+	$(CC) $(CFLAGS) $(GSL_CFLAGS) -pthread -I$(INCLUDE_DIR) -o $(BUILD_DIR)/test_cgm tests/test_cgm.c $(CGM_SRCS) $(GSL_LIBS) $(LDFLAGS)
 	$(BUILD_DIR)/test_cgm
 
 # ── LLVM IR Tooling ──────────────────────────────────────────────────────────

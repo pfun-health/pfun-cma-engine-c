@@ -1,12 +1,59 @@
 /* test_cgm.c: CGM ingestion + GSL curve fit test. Run via `make test-cgm`. */
 #include <math.h>
 #include <stdio.h>
+#include <stdlib.h>
 
 #include <gsl/gsl_errno.h>
+
+#include <pthread.h>
 
 #include "pfun_cma_engine/pfun_cma_cgm.h"
 
 #define CHECK(c) do { if (!(c)) { printf("FAIL: %s (line %d)\n", #c, __LINE__); return 1; } } while (0)
+
+typedef struct {
+  int n;
+  int failed;
+} format_thread_arg;
+
+static void *format_thread(void *data) {
+  format_thread_arg *arg = data;
+  double *epoch = malloc((size_t)arg->n * sizeof(*epoch));
+  double *tod = malloc((size_t)arg->n * sizeof(*tod));
+  double *value = malloc((size_t)arg->n * sizeof(*value));
+  if (!epoch || !tod || !value) {
+    arg->failed = 1;
+    goto done;
+  }
+  for (int i = 0; i < arg->n; i++) {
+    int sample = arg->n - i - 1;
+    epoch[i] = sample * 60.0;
+    tod[i] = fmod(sample / 60.0, 24.0);
+    value[i] = 100.0 + fmod(sample / 20.0, 50.0);
+  }
+  for (int iteration = 0; iteration < 16; iteration++) {
+    pfun_cgm_data d;
+    if (pfun_cgm_format(epoch, tod, value, arg->n, 64, &d) != 0) {
+      arg->failed = 1;
+      break;
+    }
+    for (int i = 0; i < d.N; i++) {
+      if (!isfinite(d.time[i]) || (i > 0 && d.time[i] < d.time[i - 1]) ||
+          !isfinite(d.t[i]) || d.t[i] < 0.0 || d.t[i] >= 24.0) {
+        arg->failed = 1;
+        break;
+      }
+    }
+    pfun_cgm_data_free(&d);
+    if (arg->failed)
+      break;
+  }
+done:
+  free(epoch);
+  free(tod);
+  free(value);
+  return NULL;
+}
 
 int main(void) {
   gsl_set_error_handler_off();
@@ -58,6 +105,19 @@ int main(void) {
   CHECK(fabs(d.t[1] - 5.9166666667) < 1e-6);
   CHECK(fabs(d.t[3] - 18.0833333333) < 1e-6);
   pfun_cgm_data_free(&d);
+
+  pthread_t format_threads[2];
+  format_thread_arg format_args[2] = {{257, 0}, {4093, 0}};
+  CHECK(pthread_create(&format_threads[0], NULL, format_thread,
+                       &format_args[0]) == 0);
+  if (pthread_create(&format_threads[1], NULL, format_thread,
+                     &format_args[1]) != 0) {
+    pthread_join(format_threads[0], NULL);
+    CHECK(0);
+  }
+  CHECK(pthread_join(format_threads[0], NULL) == 0);
+  CHECK(pthread_join(format_threads[1], NULL) == 0);
+  CHECK(!format_args[0].failed && !format_args[1].failed);
 
   CHECK(pfun_cgm_read_csv("tests/data/sample_cgm_local.csv", 3, &d) == 0);
   CHECK(fabs(d.t[0] - 8.0) < 1e-6);
