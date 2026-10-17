@@ -117,6 +117,53 @@ longer apply. Docker `build`/`shell` and `flake.nix` shrink accordingly. The
 removal list needs owner sign-off (new open decision R8); anything the owner
 wants preserved is re-added to the Keep table and ported per the original FRs.
 
+## 3b. File Removal Manifest
+
+Principle: a tracked file stays only if a kept demo/target (§3a), the dev
+environment, or documentation of those needs it. Preliminary-phase JIT/IR/LLVM
+experiments are removed. Each deletion is done with `git rm` in the phase
+noted; before deleting, `git grep` each path to confirm no remaining
+reference (Makefile, docs, Docker, flake).
+
+**Delete (Phase 6 unless noted):**
+
+| Group | Files |
+|---|---|
+| JIT engines | `pfun_cma_engine/jit_engine.py`, `pfun_cma_engine/orc_jit_engine.py`, `demos/py/demo_jit.py` |
+| IR/LLVM exploration scripts | `tools/ir-pass-explorer.sh`, `tools/ir-profile.sh`, `tools/check-ir-metrics.sh`, `tests/ir-golden-metrics.txt`, `tools/benchmark-compare.py` |
+| LLVM conversion script | `tools/convert-to-llvm.py` (replaced by an inline Makefile recipe; Phase 5) |
+| Python packaging | `setup.py`, `pyproject.toml`, `uv.lock`, `.python-version`, `MANIFEST.in`, `pfun_cma_engine/__init__.py`, `pfun_cma_engine/pfun_cma_engine.py`, `pfun_cma_engine/py/` |
+| Python demos / scenario DB | `demos/py/**` (incl. `scenariogen/`), `docs/SCENARIO_DB.md` |
+| Python tests | `tests/test_activity.py`, `test_demo_scenarios.py`, `test_scenariogen.py`, `test_scenario_db.py`, `test_precision.py` (coverage ported per FR-5 first; Phase 2 port, Phase 6 delete) |
+| Precision / data tools | `tools/precision_report.py`, `docs/PRECISION.md`, `tools/fetch_cgm_data.py` |
+| Python-only facade/docs | `pfun_cma_engine/c/README.md`, `pfun_cma_engine/ts/README.md` are folded into the main README, then removed along with the now-empty `pfun_cma_engine/{c,py,ts}` dirs (the built `.so`/`.a` output dir `pfun_cma_engine/` stays, or moves to `build/lib/` — decide in Phase 1 and update the Koffi path) |
+
+**Review candidates (audit during Phase 0; delete if unreferenced by kept
+targets, the dev shell, or docs):**
+- `tools/docker-build.sh`, `tools/docker-run.sh` (keep only if Docker is a
+  supported demo path), `compose.yaml`, `Dockerfile`, `entry.sh`.
+- `TCLUI_PRD.md`, `PROPOSED.md` (planning docs for a UI not in the demo set;
+  archive/delete, trimming PROPOSED.md references to Python/JIT).
+- `docs/FORMATTING.md`, `.vscode/settings.json` (remove Python settings).
+- `third_party/nuklear/nuklear.h` — **keep** (C demo, also fetched by
+  `vendor-nuklear`).
+- `src/fit/pfun_cma_fit.c`, `src/pfun_cma_cgm.c`, `tests/test_cgm.c`,
+  `tests/data/*` — **keep** (CGM demo).
+- `docs/demo_outputs/*` for removed demos (`DEMO_PY_OUTPUT.md`, etc.) —
+  delete; regenerate the rest.
+
+**Keep list (explicit):** `src/**`, `include/**`, `Makefile`, `flake.nix`,
+`flake.lock`, `package.json`, `package-lock.json`, `demos/c/**`,
+`demos/ts/**`, `demos/scenarios.json`, `public/index-wasm.html`,
+`tests/test_scaling.c`, `tests/ir-structural-check.llcheck` (backs the kept
+`check-ir`), `tests/test_cgm.c`, `README.md`, `docs/BUILD.md`.
+
+**Acceptance for removals:** after Phase 6, `git ls-files` contains no `*.py`,
+`*.toml` Python config, `uv.lock`, or `jit`/`orc` named files; every remaining
+tracked file is reachable from a kept target, the dev shell, or the docs
+(verified by a short audit script/checklist in the PR); `make help` lists only
+kept targets.
+
 ## 4. Target Architecture
 
 ```
@@ -324,6 +371,7 @@ src/*.c ──► libpfun_cma_engine.so ──► Koffi ──► ts/ library �
 | R4 | `--experimental-strip-types` is experimental and forbids enums/namespaces/parameter properties | Lint rule (`erasableSyntaxOnly` in `tsconfig.json`); Node 22.18+/24 enable stripping by default—pin `engines` accordingly. |
 | R5 | Koffi native prebuilds on Alpine/musl and arm64 | Verify in Docker CI matrix; fallback is building Koffi from source. |
 | R6 | `node:sqlite` is stable-ish only in newer Node | Require Node ≥ 22.13 (flag-free) or use `better-sqlite3` as fallback. |
+| R9 | Deleting files is irreversible in the working tree and drops historical experiments (JIT/IR) | Preserve in git history; tag `pre-node-migration` before Phase 6; owner reviews the §3b manifest |
 | R8 | Pruning (§3a) deletes scenario DB, embeddings, precision and LLVM-analysis features | Owner confirms the Keep/Remove lists before Phase 6 |
 | R7 | Float16 emulation for precision tests | Implement round-to-nearest-even helper (or `Math.f16round` on Node ≥ 24); unit-test against known vectors. |
 
