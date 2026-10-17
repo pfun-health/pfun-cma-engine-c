@@ -23,6 +23,7 @@ C compiler + (optional) LLVM/emscripten/GSL + Node.js + npm.
 ## 2. Goals / Non-Goals
 
 ### Goals
+
 - G1. Every Python-backed Make target has a Node/TS equivalent with the same
   target name, flags, and output format.
 - G2. Numerical results are equivalent to the Python implementation within

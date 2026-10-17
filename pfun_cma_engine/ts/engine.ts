@@ -5,6 +5,9 @@ import { fileURLToPath } from "node:url";
 
 export const MAX_POINTS = 768;
 
+/**
+ * Maximum number of time points supported by the engine.
+ */
 export type ActivityParams = {
   k_A: number;
   A_thresh: number;
@@ -15,6 +18,9 @@ export type ActivityParams = {
   tau_A: number;
 };
 
+/**
+ * Parameters for the CMA model.
+ */
 export type ModelParams = {
   d: number;
   taup: number;
@@ -24,6 +30,9 @@ export type ModelParams = {
   eps: number;
 };
 
+/**
+ * Input to the CMA engine.
+ */
 export type EngineInput = {
   time: Float64Array;
   modelParams: ModelParams;
@@ -35,6 +44,9 @@ export type EngineInput = {
   activityParams: ActivityParams;
 };
 
+/**
+ * Output from the CMA engine.
+ */
 export type EngineOutput = {
   L: Float64Array;
   m: Float64Array;
@@ -51,16 +63,30 @@ export type EngineOutput = {
   g: Float64Array;
 };
 
+/**
+ * Signature of the `run_cma_model` function in the shared library.
+ */
 const SIGNATURE =
   "void run_cma_model(const double *t, int N, double d, double taup, double taug_val, const double *taug_vec, double B, double Cm, double toff, const double *tM, int n_meals, int *seed, double eps, const double *A_raw, double k_A, double A_thresh, double gamma_A, double kappa_A, double beta_A, double eta_A, double tau_A, double *out_L, double *out_m, double *out_c, double *out_c_mod, double *out_A, double *out_a, double *out_I_S, double *out_I_E, double *out_I_E_eff, double *out_s_A, double *out_G, double *out_g)";
 
+/**
+ * Load the shared library and return the function pointer for `run_cma_model`.
+ * Caches the result to avoid repeated loading.
+ */
 type RunFn = (...args: unknown[]) => void;
 let cached: { path: string; fn: RunFn } | undefined;
 
+/**
+ * Return the default repository root for the CMA engine.
+ */
 export function defaultRepoRoot(): string {
   return resolve(dirname(fileURLToPath(import.meta.url)), "../..");
 }
 
+/**
+ * Return the path to the shared library for the CMA engine.
+ * Respects the `PFUN_CMA_ENGINE_LIB` environment variable if set.
+ */
 export function libraryPath(): string {
   return (
     process.env.PFUN_CMA_ENGINE_LIB ??
@@ -69,6 +95,7 @@ export function libraryPath(): string {
 }
 
 function load(): RunFn {
+  // Load the shared library and cache the function pointer.
   const path = libraryPath();
   if (cached?.path === path) return cached.fn;
   if (!existsSync(path)) {
@@ -78,7 +105,9 @@ function load(): RunFn {
   cached = { path, fn };
   return fn;
 }
-
+/**
+ * Run the CMA engine with the given input and return the output.
+ */
 export function runCmaEngine(input: EngineInput): EngineOutput {
   const n = input.time.length;
   if (n < 2 || n > MAX_POINTS) {
