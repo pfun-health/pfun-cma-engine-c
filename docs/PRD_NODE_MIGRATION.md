@@ -35,6 +35,7 @@ C compiler + (optional) LLVM/emscripten/GSL + Node.js + npm.
 - G4. Single dependency manager: `npm` (`package.json` + `package-lock.json`).
 
 ### Non-Goals
+
 - Changing the C engine (`src/`, `include/`) or its ABI.
 - Changing model semantics, scenario definitions, or scenario DB contents.
 - Publishing a Python wheel (see §9 – this is a deliberate removal, needs
@@ -46,7 +47,7 @@ C compiler + (optional) LLVM/emscripten/GSL + Node.js + npm.
 Python-dependent build targets and files:
 
 | Area | Make target / entry | Python source | Third-party deps |
-|---|---|---|---|
+| --- | --- | --- | --- |
 | Python env | `python-setup`, `python-setup-dev`, `python-clean-venv` | `pyproject.toml`, `uv.lock`, `.python-version` | uv |
 | Package build | `setup.py` (ctypes ext build) | `setup.py`, `MANIFEST.in` | setuptools |
 | Engine wrapper | (used by demos/tests) | `pfun_cma_engine/pfun_cma_engine.py` | numpy, ctypes |
@@ -91,7 +92,7 @@ than ported, which narrows FR-3, FR-4 and FR-6 (see below).
 **Keep (required by a defined demo or its verification):**
 
 | Target | Reason |
-|---|---|
+| --- | --- |
 | `help`, `libs`, `all`, `directories`, `clean`, `rebuild` | Core build; `libs` feeds the TS demo (Koffi) |
 | `demo`, `vendor-nuklear`, `demo-c-output` | C demo |
 | `demo-ts-output` (+ `demo-morning-run`, `demo-evening-party` re-pointed at TS), `npm-setup`, `outputs` | TS demo and snapshots in `docs/demo_outputs/` |
@@ -101,6 +102,7 @@ than ported, which narrows FR-3, FR-4 and FR-6 (see below).
 | `format`, `check-format` | Source hygiene |
 
 **Remove (not needed by any defined demo):**
+
 - Python env: `python-setup`, `python-setup-dev`, `python-clean-venv`,
   `demo-py-output`, and variables `UV`, `PYTHON`.
 - Scenario DB / embeddings: `scenario-db`, `scenario-db-core`, `query-demo`,
@@ -143,7 +145,7 @@ reference (Makefile, docs, Docker, flake).
 **Delete (Phase 6 unless noted):**
 
 | Group | Files |
-|---|---|
+| --- | --- |
 | JIT engines | `pfun_cma_engine/jit_engine.py`, `pfun_cma_engine/orc_jit_engine.py`, `demos/py/demo_jit.py` |
 | IR/LLVM exploration scripts | `tools/ir-pass-explorer.sh`, `tools/ir-profile.sh`, `tools/check-ir-metrics.sh`, `tests/ir-golden-metrics.txt`, `tools/benchmark-compare.py` |
 | LLVM conversion script | `tools/convert-to-llvm.py` (replaced by an inline Makefile recipe; Phase 5) |
@@ -155,6 +157,7 @@ reference (Makefile, docs, Docker, flake).
 
 **Review candidates (audit during Phase 0; delete if unreferenced by kept
 targets, the dev shell, or docs):**
+
 - `tools/docker-build.sh`, `tools/docker-run.sh` (keep only if Docker is a
   supported demo path), `compose.yaml`, `Dockerfile`, `entry.sh`.
 - `TCLUI_PRD.md`, `PROPOSED.md` (planning docs for a UI not in the demo set;
@@ -204,6 +207,7 @@ src/*.c ──► libpfun_cma_engine.so ──► Koffi ──► ts/ library �
 ## 5. Functional Requirements
 
 ### FR-1 Engine binding (replaces `pfun_cma_engine.py`)
+
 - **Implemented** in `pfun_cma_engine/ts/engine.ts`: loads
   `pfun_cma_engine/libpfun_cma_engine.so` (path overridable by
   `PFUN_CMA_ENGINE_LIB`); errors clearly if not built (`run make libs`).
@@ -220,6 +224,7 @@ src/*.c ──► libpfun_cma_engine.so ──► Koffi ──► ts/ library �
   (see `docs/PRECISION.md`).
 
 ### FR-2 Scenario demos
+
 - Port `demos/py/demo.py` + `scenarios.py` to TS. Single source of scenario
   data: `demos/scenarios.json` (already shared with the TS demo).
 - `make demo-morning-run`, `demo-evening-party`, `demo-py-output` →
@@ -231,6 +236,7 @@ src/*.c ──► libpfun_cma_engine.so ──► Koffi ──► ts/ library �
   output unless it is SVG generated in-process.
 
 ### FR-3 Scenario DB (`scenariogen`)
+
 - Port `db.py`, `descriptors.py`, `mapping.py`, `references.py`, `zotero.py`,
   `build_scenario_db.py`, `query_scenario_db.py` to TS.
 - Use `node:sqlite` (built in; Node ≥ 22.5). Schema, tiers (`core` 15×97,
@@ -246,6 +252,7 @@ src/*.c ──► libpfun_cma_engine.so ──► Koffi ──► ts/ library �
   is absent (current `$(if $(wildcard ...))` logic is inverted).
 
 ### FR-4 Embedding search (`demo-scenario-embeddings`, `demo-time2eat`)
+
 - Replace fastembed with `@huggingface/transformers` (ONNX runtime for Node) or
   `fastembed` JS using the same model `BAAI/bge-small-en-v1.5`, same query
   instruction prefix, cosine similarity, L2 normalization.
@@ -257,6 +264,7 @@ src/*.c ──► libpfun_cma_engine.so ──► Koffi ──► ts/ library �
   implementation for ≥ 95 % of queries (quantization differences allowed).
 
 ### FR-5 Tests
+
 - Port `tests/test_activity.py`, `test_demo_scenarios.py`, `test_scenariogen.py`,
   `test_scenario_db.py`, `test_precision.py` to `node:test`
   (`tests/*.test.ts`). Preserve every assertion and tolerance; do not drop
@@ -265,6 +273,7 @@ src/*.c ──► libpfun_cma_engine.so ──► Koffi ──► ts/ library �
   `node --experimental-strip-types --test`; add `npm test`.
 
 ### FR-6 Tools
+
 - `tools/precision_report.py` → `tools/precision_report.ts` (output Markdown
   identical in structure).
 - `tools/fetch_cgm_data.py` → `tools/fetch_cgm_data.ts` using `fetch`,
@@ -283,6 +292,7 @@ src/*.c ──► libpfun_cma_engine.so ──► Koffi ──► ts/ library �
   with `-sENVIRONMENT=node` is the supported JIT-like path.
 
 ### FR-7 Build/packaging
+
 - Delete `setup.py`, `pyproject.toml`, `uv.lock`, `.python-version`,
   `MANIFEST.in`, `pfun_cma_engine/__init__.py`, `pfun_cma_engine/*.py`,
   `pfun_cma_engine/py/`.
@@ -294,6 +304,7 @@ src/*.c ──► libpfun_cma_engine.so ──► Koffi ──► ts/ library �
   `.so` — out of scope, tracked separately.
 
 ### FR-8 Makefile
+
 - Remove `UV`, `PYTHON`, `python-*` targets, and `.venv` from `clean`.
 - Add `NODE ?= node`, `NODE_FLAGS := --experimental-strip-types`, and reuse
   `npm-setup` (`npm ci`) as an order-only prerequisite of every TS target.
@@ -303,6 +314,7 @@ src/*.c ──► libpfun_cma_engine.so ──► Koffi ──► ts/ library �
   `PATH` (verified in CI, see §8).
 
 ### FR-9 Docker, entrypoint, Nix
+
 - `Dockerfile`: remove `ENABLE_UV_DEMO_SETUP`, uv cache mounts, python/pip
   packages; add `nodejs npm` (Alpine) and run `npm ci` in a cached layer
   (`COPY package*.json` first). Koffi ships prebuilt musl binaries—verify, else
@@ -334,6 +346,7 @@ src/*.c ──► libpfun_cma_engine.so ──► Koffi ──► ts/ library �
     the dev shell only.
 
 ### FR-10 Documentation
+
 - Update `README.md`, `docs/BUILD.md`, `docs/SCENARIO_DB.md`,
   `docs/PRECISION.md`, `PROPOSED.md`, `pfun_cma_engine/*/README.md` to remove
   every Python/uv instruction and describe the TS equivalents.
@@ -386,7 +399,7 @@ src/*.c ──► libpfun_cma_engine.so ──► Koffi ──► ts/ library �
 ## 9. Risks, Open Questions, Decisions Needed
 
 | # | Item | Proposed resolution |
-|---|---|---|
+| --- | --- | --- |
 | R1 | llvmlite MCJIT/ORC engines and `demo_jit.py` have no Node analogue | Drop; benchmark vs. WASM and native LLVM builds. **Needs owner approval.** |
 | R2 | Python package (`pip install`/wheel, ctypes wrapper) is removed — downstream Python consumers (e.g. `pfun-cma-model`) break | Confirm no consumers depend on this repo's wheel; otherwise keep a *separate* repo/branch for the Python wheel. **Needs owner approval.** |
 | R3 | Embedding model in Node (ONNX runtime, model download) may differ slightly numerically | Acceptance threshold in FR-4; `optionalDependencies`. |
@@ -404,8 +417,8 @@ src/*.c ──► libpfun_cma_engine.so ──► Koffi ──► ts/ library �
 2. **Phase 1 – Foundation:** `tsconfig`, `engines`, TS engine library (FR-1),
    refactor `demos/ts/demo.ts` onto it; shared test helpers.
    *(Done: `tsconfig.json` (strict, `erasableSyntaxOnly`), `engines.node
-   >=22.6`, `typescript`/`@types/node` devDependencies, npm scripts `build`,
-   `test` (`node --test tests/*.test.ts`), `typecheck` (`tsc --noEmit`);
+   >=22.6`,`typescript`/`@types/node` devDependencies, npm scripts `build`,
+   `test`(`node --test tests/*.test.ts`),`typecheck`(`tsc --noEmit`);
    Python code and Makefile untouched.)*
 3. **Phase 2 – Core ports** *(next)*: scenarios/demo (FR-2), `scenariogen` + DB (FR-3),
    tests (FR-5), precision tool (FR-6a).
@@ -425,8 +438,10 @@ Each phase is a separately reviewable PR that keeps `make test` green.
 their output (Python-free toolchain, kept `demo-wasm` target, Node tooling).
 
 ### 11.1 Goal
+
 Serve the CMA model (including the `/time2eat` chat recommender, §11.7) as a tiny, scale-to-zero edge app on Cloudflare Workers,
 running the existing C engine compiled to WebAssembly. Targets:
+
 - **Minimal memory:** a few MB resident per isolate (well below the Workers
   128 MB isolate limit); no heap growth at runtime.
 - **Minimal process overhead:** no containers/VMs, no always-on server, no
@@ -440,7 +455,9 @@ The engine already suits this: `demos/c/wasm_demo.c` uses fixed static buffers
 deterministic closed-form computation with no I/O or threads.
 
 ### 11.2 Platform facts to design against
+
 Re-verify against the Cloudflare docs at implementation time (limits change):
+
 - Workers run in V8 isolates; WASM is supported via `.wasm` module imports
   bundled by Wrangler (`import mod from "./x.wasm"` yields a precompiled
   `WebAssembly.Module`). Runtime compilation of arbitrary bytes
@@ -458,10 +475,12 @@ Re-verify against the Cloudflare docs at implementation time (limits change):
   filesystem, threads, or dynamic memory growth.
 
 ### 11.3 Architecture
+
 ```
 client ──GET /──────────► Static Assets (index.html, small JS)
 client ──POST /api/run──► Worker (TS) ──► cma.wasm (C engine, instance reused)
 ```
+
 - One Worker (`worker/index.ts`) with two routes: static UI via Assets binding,
   and `POST /api/run` taking the model parameters as JSON, returning series as
   JSON (or a compact `Float32Array` binary response for large `npts`).
@@ -471,6 +490,7 @@ client ──POST /api/run──► Worker (TS) ──► cma.wasm (C engine, in
   phase 1; the Worker API is optional phase 2 for programmatic access.
 
 ### 11.4 Technical steps
+
 1. **Standalone WASM build** (new Make target `wasm-worker`):
    build `src/pfun_cma_engine.c` plus a thin export shim (derived from
    `wasm_demo.c`, with the input validation/clamping kept) using either
@@ -510,6 +530,7 @@ client ──POST /api/run──► Worker (TS) ──► cma.wasm (C engine, in
    README link.
 
 ### 11.7 Required: `/time2eat` as a user-facing Worker app
+
 **Requirement:** the deployed app must provide a functional `/time2eat`:
 a real user asks "when is the best time for me to eat?" and receives
 recommended meal times, backed by the CMA model and scenario database. It is a
@@ -567,6 +588,7 @@ service binding; default to one Worker to minimize cost/latency):
      percentile, overridable, as in the Python demo.
 
 **Interfaces**
+
 - `POST /api/chat` `{session_id?, messages[]}` → streamed or JSON assistant
   reply plus optional `recommendation` object.
 - `POST /api/time2eat` `{state}` → recommendation (direct, LLM-free API;
@@ -605,6 +627,7 @@ logs record only counts/latency. Document data handling in
     tool call, and out-of-scope/medical prompts get the safe response.
 
 **Acceptance criteria (in addition to §11.5):**
+
 - [ ] A user can open the deployed URL, ask "when is the best time for me to
       eat?", answer follow-ups, and receive meal-time recommendations with
       anchor scenario and TIR score.
@@ -624,6 +647,7 @@ changes (abstraction + AI Gateway); corpus growth beyond bundle size (D1/
 Vectorize fallback); medical-advice liability (disclaimer + hard safety path).
 
 ### 11.5 Acceptance criteria
+
 - [ ] `.wasm` ≤ 100 KB (stretch ≤ 50 KB), no JS glue beyond the Worker.
 - [ ] Linear memory fixed ≤ 2 MiB; no growth; Worker RSS reported by the
       platform far below 128 MB.
@@ -633,6 +657,7 @@ Vectorize fallback); medical-advice liability (disclaimer + hard safety path).
 - [ ] `make wasm-worker` and `npm run deploy` work without Python or uv.
 
 ### 11.6 Risks / open questions
+
 - **libm without Emscripten:** exactness vs. size trade-off (step 1).
 - **Free-plan CPU ceiling (~10 ms):** large `npts` or noisy runs must be
   bounded; mitigated by the `MAXPTS` cap and caching.
@@ -641,5 +666,6 @@ Vectorize fallback); medical-advice liability (disclaimer + hard safety path).
 - **Abuse/cost:** public unauthenticated endpoint needs rate limiting.
 
 ## 12. Out-of-Scope Follow-ups
+
 - npm package with prebuilt binaries; WASM-only distribution of the engine;
   porting the GSL CGM fit to Node.
