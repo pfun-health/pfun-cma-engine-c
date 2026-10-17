@@ -28,7 +28,8 @@ C compiler + (optional) LLVM/emscripten/GSL + Node.js + npm.
 - G2. Numerical results are equivalent to the Python implementation within
   documented tolerances (see §7).
 - G3. Remove `uv`/Python from `Makefile`, `Dockerfile`, `entry.sh`,
-  `flake.nix`, docs and tracked packaging files.
+  `flake.nix` (kept, as dev-environment config only), docs and tracked
+  packaging files.
 - G4. Single dependency manager: `npm` (`package.json` + `package-lock.json`).
 
 ### Non-Goals
@@ -241,10 +242,27 @@ src/*.c ──► libpfun_cma_engine.so ──► Koffi ──► ts/ library �
   --scenario "$SCENARIO"`; drop `uv run python`. (Also fix POSIX `local`/`echo
   "\n"` usage while editing.)
 - `compose.yaml`: no change expected beyond build args.
-- `flake.nix`: remove `python311`, `uv`, `UV*` env vars, `uv sync`, and
-  `MAKEFLAGS=UV=…`; keep `nodejs_22`. Replace the `python3 -m http.server`
-  preview helper with `npx http-server`/a small `node` static server script
-  (`tools/serve.ts`) using `node:http`.
+- `flake.nix` (**retained** as the development-environment definition; it is
+  not a build or CI dependency, and no `make` target may require Nix):
+  - `devShells.default`: `gcc`, `gnumake`, `pkg-config`, `gsl`,
+    `clang-tools`, `llvmPackages.{clang,llvm}` (for `llvm-ir`, `test-llvm`,
+    `check-ir`), and `nodejs_22` (pinned ≥ 22.6; consider 24 for flag-free
+    type stripping). Remove `python311`, `uv`, `UV`/`UV_PYTHON*` env vars,
+    the `MAKEFLAGS=UV=…` override, and the `uv sync --dev` hook; replace the
+    hook with `[ -d node_modules ] || npm ci`. Drop pruned-target tooling
+    (§3a) that no kept target needs.
+  - `devShells.wasm`: unchanged opt-in `emscripten` shell (`EM_CACHE` kept);
+    fix the shell-hook hints so they name real commands.
+  - `packages` (`pfun-cma-engine`, `demo-wasm`) stay for reproducible demo
+    builds; they must not reference Python.
+  - `apps.serve-wasm`: replace `python3 -m http.server` with a `node`
+    static server (`tools/serve.ts` via `pkgs.nodejs_22`), so the flake
+    closure is Python-free.
+  - Update the header comment ("native C/Python/TS work" → "native C/TS
+    work"), run `nix flake check`, and refresh `flake.lock` only if inputs
+    change.
+  - `docs/BUILD.md` Nix section updated to say Nix is optional and provides
+    the dev shell only.
 
 ### FR-10 Documentation
 - Update `README.md`, `docs/BUILD.md`, `docs/SCENARIO_DB.md`,
