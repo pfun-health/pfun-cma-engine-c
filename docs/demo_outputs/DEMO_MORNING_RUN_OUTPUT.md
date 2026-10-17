@@ -20,13 +20,13 @@ Moderate aerobic run before breakfast with residual insulin sensitization throug
 
 ## Scenario inputs
 
-- meals (h): [8.0, 12.5, 18.5]
-- meal widths taug (h): [0.9, 1.0, 1.1]
+- meals (h): [8, 12.5, 18.5]
+- meal widths taug (h): [0.9, 1, 1.1]
 - activity pulses (center, width, amplitude): [(6.75, 0.55, 0.55)]
 - activity enabled: yes
 - A_raw max: 0.550
 - normalized activity proxy max: 0.550
-- activity params: k_A=5.0, A_thresh=0.3, gamma_A=0.18, kappa_A=0.5, beta_A=0.15, eta_A=0.55, tau_A=3.0
+- activity params: k_A=5, A_thresh=0.3, gamma_A=0.18, kappa_A=0.5, beta_A=0.15, eta_A=0.55, tau_A=3
 
 ## Physiological rationale
 

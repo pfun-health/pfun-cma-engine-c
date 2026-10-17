@@ -119,28 +119,28 @@ Fixed engine constants (not user-editable): `NMEALS=3`, `MAXPTS=512`,
 `EPS=1e-18`, `seed=12345`. Semantics preserved from `demo.c`
 (`scenario_default`, `scenario_params`).
 
-| id | name | value | min | max | step | kind |
-|----|------|-------|-----|-----|------|------|
-| p0  | d           | 1.0  | 0.0 | 4.0 | 0.1  | float |
-| p1  | taup        | 1.2  | 0.0 | 4.0 | 0.1  | float |
-| p2  | taug_val    | 1.0  | 0.5 | 8.0 | 0.25 | float |
-| p3  | B           | 0.05 | 0.01 | 0.5 | 0.01 | float |
-| p4  | Cm          | 0.0  | 0.0 | 1.0 | 0.05 | float |
-| p5  | toff        | 0.0  | 0.0 | 2.0 | 0.1  | float |
-| p6  | tM[0]       | 7.0  | 0.0 | 24.0 | 0.5 | float |
-| p7  | tM[1]       | 11.0 | 0.0 | 24.0 | 0.5 | float |
-| p8  | tM[2]       | 17.5 | 0.0 | 24.0 | 0.5 | float |
-| p9  | N pts       | 97   | 97  | 512 | 24  | int   |
-| p10 | activity    | 0    | 0   | 1   | 1   | bool  |
-| p11 | A_amp       | 0.4  | 0.0 | 2.0 | 0.05 | float |
-| p12 | k_A         | 5.0  | 0.5 | 20.0 | 0.5 | float |
-| p13 | A_thresh    | 0.3  | 0.0 | 1.0 | 0.05 | float |
-| p14 | gamma_A     | 0.15 | 0.0 | 1.0 | 0.05 | float |
-| p15 | kappa_A     | 0.5  | 0.0 | 3.0 | 0.1  | float |
-| p16 | beta_A      | 0.20 | 0.0 | 2.0 | 0.05 | float |
-| p17 | eta_A       | 0.40 | 0.0 | 2.0 | 0.05 | float |
-| p18 | tau_A       | 2.0  | 0.1 | 6.0 | 0.1  | float |
-| p19 | noise       | 0    | 0   | 1   | 1   | bool  |
+| id  | name     | value | min  | max  | step | kind  |
+| --- | -------- | ----- | ---- | ---- | ---- | ----- |
+| p0  | d        | 1.0   | 0.0  | 4.0  | 0.1  | float |
+| p1  | taup     | 1.2   | 0.0  | 4.0  | 0.1  | float |
+| p2  | taug_val | 1.0   | 0.5  | 8.0  | 0.25 | float |
+| p3  | B        | 0.05  | 0.01 | 0.5  | 0.01 | float |
+| p4  | Cm       | 0.0   | 0.0  | 1.0  | 0.05 | float |
+| p5  | toff     | 0.0   | 0.0  | 2.0  | 0.1  | float |
+| p6  | tM[0]    | 7.0   | 0.0  | 24.0 | 0.5  | float |
+| p7  | tM[1]    | 11.0  | 0.0  | 24.0 | 0.5  | float |
+| p8  | tM[2]    | 17.5  | 0.0  | 24.0 | 0.5  | float |
+| p9  | N pts    | 97    | 97   | 512  | 24   | int   |
+| p10 | activity | 0     | 0    | 1    | 1    | bool  |
+| p11 | A_amp    | 0.4   | 0.0  | 2.0  | 0.05 | float |
+| p12 | k_A      | 5.0   | 0.5  | 20.0 | 0.5  | float |
+| p13 | A_thresh | 0.3   | 0.0  | 1.0  | 0.05 | float |
+| p14 | gamma_A  | 0.15  | 0.0  | 1.0  | 0.05 | float |
+| p15 | kappa_A  | 0.5   | 0.0  | 3.0  | 0.1  | float |
+| p16 | beta_A   | 0.20  | 0.0  | 2.0  | 0.05 | float |
+| p17 | eta_A    | 0.40  | 0.0  | 2.0  | 0.05 | float |
+| p18 | tau_A    | 2.0   | 0.1  | 6.0  | 0.1  | float |
+| p19 | noise    | 0     | 0    | 1    | 1    | bool  |
 
 ### 5.2 Results (read-only, recomputed)
 
@@ -151,7 +151,7 @@ I_E_eff, s_A, G` (arrays of length N) and `g` (NMEALS×N). Produced solely by
 ### 5.3 View state
 
 | id | meaning | init |
-|----|---------|------|
+| ---- | --------- | ------ |
 | `sel` | selected variable index 0..11 | 0 (G) |
 | `panel` | focus region: `list` \| `params` | `list` |
 | `pfocus` | focused parameter index −1..19 | −1 |
@@ -166,7 +166,7 @@ I_E_eff, s_A, G` (arrays of length N) and `g` (NMEALS×N). Produced solely by
 ### 5.4 Runtime state
 
 | id | meaning | init |
-|----|---------|------|
+| ---- | --------- | ------ |
 | `auto_run` | recompute on every param change | 1 |
 | `dirty` | recompute before next frame | 1 |
 | `frame` | monotonic frame counter | 0 |
@@ -189,7 +189,7 @@ default key binding, pointing binding(s), and is **backend-mandatory**
 ### 6.1 Focus & navigation
 
 | op | semantics | keys | pointer |
-|----|-----------|------|---------|
+| ---- | ----------- | ------ | --------- |
 | `OP_FOCUS_VARLIST` | `panel=list; pfocus=−1` | `Tab` (in params) | click var region |
 | `OP_FOCUS_PARAMS` | `panel=params; pfocus=0; poff=0` | `Tab` (in list) | click params region |
 | `OP_NEXT_ITEM` | `list`: `sel=min(sel+1,11)`. `params`: `pfocus=min(pfocus+1,19)`; `poff` follows so `pfocus∈[poff, poff+ROWS−1]` | `j`, `J`, `↓` | scroll-down in var region |
@@ -202,7 +202,7 @@ default key binding, pointing binding(s), and is **backend-mandatory**
 ### 6.2 Parameter editing
 
 | op | semantics | keys |
-|----|-----------|------|
+| ---- | ----------- | ------ |
 | `OP_PARAM_INC` | bool: `val=!val`; int (N): `val=CLAMP(val+step, 97, 512)`; float: `val=CLAMP(val+step, lo, hi)` | `→`, `+`, `=` |
 | `OP_PARAM_DEC` | mirror | `←`, `−`, `-` |
 | `OP_PARAM_FINE_INC` | float only: `+step/10` (int/bool unchanged); clamps | `Shift→`, `]` |
@@ -226,7 +226,7 @@ frame).
 ### 6.4 Plot / inspection
 
 | op | semantics | keys | pointer |
-|----|-----------|------|---------|
+| ---- | ----------- | ------ | --------- |
 | `OP_PLOT_SERIES_TOGGLE(j)` | when `sel==11 (g)`: hide/show meal series j∈0..2 | optional `m1/m2/m3` | click legend item |
 | `OP_PLOT_GRID_TOGGLE` | `grid=!grid` | `g` | — |
 | `OP_PLOT_MEALMARK_TOGGLE` | `mealmarks=!mealmarks` | `M` | — |
@@ -238,7 +238,7 @@ frame).
 ### 6.5 Persistence & export
 
 | op | semantics | keys |
-|----|-----------|------|
+| ---- | ----------- | ------ |
 | `OP_SCENARIO_SAVE(name)` | persist full scenario (p0..p19) to named slot (JSON) | `S` |
 | `OP_SCENARIO_LOAD(name)` | restore scenario; run | `L` |
 | `OP_SCENARIO_RESET` | scenario → defaults (§5.1); run | `D` |
@@ -247,7 +247,7 @@ frame).
 ### 6.6 Pointing-device primitives (exhaustive)
 
 | primitive | normalized meaning |
-|-----------|--------------------|
+| ----------- | -------------------- |
 | `PTR_MOVE(x,y)` | update pointer state; if over plot and info-armed → hover readout |
 | `PTR_DOWN(x,y,btn)` / `PTR_UP(x,y,btn)` | btn ∈ {left, right, middle}: region hit-test → `OP_SELECT_VAR`, `OP_SELECT_PARAM`, plot drag-pan, legend click |
 | `PTR_SCROLL(x,y,delta)` | var region → `OP_NEXT/OP_PREV_ITEM`; params region → select param row; plot → `OP_PLOT_ZOOM_X` |
@@ -307,7 +307,7 @@ A frame is an ordered command list. Sinks translate each command to native
 draw calls (canvas items, cell glyphs, etc.). Commands:
 
 | cmd | args | notes |
-|-----|------|-------|
+| ----- | ------ | ------- |
 | `clear` | — | blank canvas / terminal backing |
 | `clip` / `clip_off` | `(x,y,w,h)` | scissor for plot body |
 | `fill` | `(x,y,w,h,color)` | region background |
@@ -488,7 +488,7 @@ New targets appended to `Makefile` (existing targets untouched):
 ## 14. Testing & Verification
 
 | test | method | gate |
-|------|--------|------|
+| ------ | -------- | ------ |
 | Engine-bridge equality | same scenario via Tcl vs Python wrapper; rel-tol 1e-12 | pass |
 | Golden ASCII parity | `tclui --ascii --save` diff vs freshly generated `DEMO_C_OUTPUT.md` | pass |
 | Logic-layer unit tests | feed §6 op sequences; assert frames/states (no display) | pass |
@@ -502,7 +502,7 @@ New targets appended to `Makefile` (existing targets untouched):
 ## 15. Milestones
 
 | phase | deliverable | est. |
-|-------|-------------|------|
+| ------- | ------------- | ------ |
 | 0 | PRD accepted; `PROPOSED.md` updated; scaffold `tclui/`, flake, Makefile targets | 0.5 d |
 | 1 | `pfun_cma_tclui.c` engine bridge + Tcl smoke test | 1–2 d |
 | 2 | `ui_core.tcl` logic layer + op/state/frame unit tests | 1–2 d |
@@ -516,7 +516,7 @@ New targets appended to `Makefile` (existing targets untouched):
 ## 16. Risks
 
 | risk | mitigation |
-|------|-----------|
+| ------ | ----------- |
 | `.so` injection into starkit awkward | pre-assemble full `.vfs` (incl. `.so`) before `qwrap`; test early in Phase 1 |
 | tclkit age (starpacker ships 8.6.3 / windows runtimes) | confirm each runtime boots; keep kitcreator runtime drop-in path open via `lib/runtimes/` |
 | Critcl not in final artifact | accepted; dev-only |

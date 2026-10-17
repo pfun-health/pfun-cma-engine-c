@@ -13,7 +13,7 @@ This document consolidates the implementation roadmap and the approved TclUI fro
 1. **Activity Function Extension** — Physical activity modeling (**COMPLETE**).
 2. **Review Findings & Required Fixes** — Three mathematical review issues (**COMPLETE**).
 3. **LLVM IR Pipeline** — Compiler optimization and cross-platform support (**Tier 1 COMPLETE**; Tiers 2–3 deferred to Q4).
-4. **TclUI Frontend** — Toolkit-agnostic UI spec + Tcl/Tk reference backend (**APPROVED**; canonical PRD in `TCLUI_PRD.md`, summary in §8).
+4. **TclUI Frontend** — Toolkit-agnostic UI spec + Tcl/Tk reference backend (**APPROVED**; canonical PRD in [TCLUI_PRD.md](TCLUI_PRD.md), summary in §8).
 5. **Scenario Database Buffer** — Evidence-backed descriptor-to-parameter mapping with curated references, precomputed into a SQLite buffer (**COMPLETE**; `docs/SCENARIO_DB.md`).
 
 ### Current Implementation Status

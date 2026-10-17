@@ -6,9 +6,19 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "demo": "node --experimental-strip-types demos/ts/demo.ts"
+    "demo": "node --experimental-strip-types demos/ts/demo.ts",
+    "build": "make libs",
+    "test": "node --experimental-strip-types --test tests/*.test.ts",
+    "typecheck": "tsc --noEmit"
   },
   "allowScripts": {
     "koffi@3.3.3": true
+  },
+  "engines": {
+    "node": ">=22.6"
+  },
+  "devDependencies": {
+    "typescript": "^5.9.0",
+    "@types/node": "^22.0.0"
   }
 }

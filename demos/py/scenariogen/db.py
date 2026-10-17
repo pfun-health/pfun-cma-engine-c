@@ -707,6 +707,75 @@ def _jsonable(params: dict) -> dict:
     return out
 
 
+def ensure_timed_scenario(
+    conn, descriptor_set: dict[str, str], meal_times: tuple[float, ...]
+) -> tuple[int, bool]:
+    """Return the exact timed scenario, inserting it when it is absent.
+
+    User-entered meal times are modeled with the selected descriptor set and
+    stored as an additional base scenario.  The existing buffer's time grid is
+    reused so the new curve has the same resolution as the precomputed rows.
+    """
+    import numpy as np
+
+    from scenariogen.descriptors import DIMENSION_ORDER
+    from scenariogen.mapping import override_ref_ids, resolve_params
+
+    combo = {dim: descriptor_set[dim] for dim in DIMENSION_ORDER}
+    times = tuple(float(t) for t in meal_times)
+    params = resolve_params(combo)
+    if len(times) != len(params["tM"]):
+        raise ValueError("meal time count does not match the selected meal schedule")
+    if any(t < 0.0 or t >= 24.0 for t in times):
+        raise ValueError("meal times must be between 00:00 and 23:59")
+
+    rows = conn.execute(
+        "SELECT scenario_id, descriptor_set, params FROM scenarios "
+        "WHERE meal_shift IS NULL ORDER BY scenario_id"
+    ).fetchall()
+    for scenario_id, stored_combo, stored_params in rows:
+        if json.loads(stored_combo) != combo:
+            continue
+        stored_times = tuple(float(t) for t in json.loads(stored_params)["tM"])
+        if len(stored_times) == len(times) and all(
+            abs(a - b) < 1e-9 for a, b in zip(stored_times, times)
+        ):
+            return int(scenario_id), False
+
+    grid_row = conn.execute(
+        "SELECT t FROM scenarios WHERE t IS NOT NULL ORDER BY scenario_id LIMIT 1"
+    ).fetchone()
+    t = np.asarray(json.loads(grid_row[0]), dtype=float) if grid_row else np.linspace(0.0, 24.0, 193)
+    params["tM"] = times
+    out = engine_run(params, t)
+    scenario_id = int(conn.execute("SELECT COALESCE(MAX(scenario_id), -1) + 1 FROM scenarios").fetchone()[0])
+    time_suffix = "-".join(f"{int(round(t * 60)) // 60 % 24:02d}{int(round(t * 60)) % 60:02d}" for t in times)
+    slug = f"{slug_for(combo)}__estimated-meals={time_suffix}"
+    title = f"{title_for(combo)} [estimated meals: {', '.join(f'{t:g}' for t in times)}]"
+    conn.execute(
+        "INSERT INTO scenarios (scenario_id, slug, title, descriptor_set, "
+        "meal_shift, params, n_meals, n_pts, t, G, g_meals, I_E, I_E_eff, L, m, c, c_mod, "
+        "A, s_A, a_insulin, I_S, summary, status) "
+        "VALUES (?, ?, ?, ?, NULL, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'user_timed')",
+        [
+            scenario_id, slug, title, json.dumps(combo), json.dumps(_jsonable(params)),
+            len(times), len(t), _arr(t), _arr(out["G"]),
+            json.dumps([np.asarray(g, dtype=float).tolist() for g in out["g"]]),
+            _arr(out["I_E"]), _arr(out["I_E_eff"]), _arr(out["L"]), _arr(out["m"]),
+            _arr(out["c"]), _arr(out["c_mod"]), _arr(out["A"]), _arr(out["s_A"]),
+            _arr(out["a"]), _arr(out["I_S"]), json.dumps(out["summary"]),
+        ],
+    )
+    for desc_id in combo.values():
+        for ref_id in override_ref_ids(desc_id):
+            conn.execute(
+                "INSERT OR IGNORE INTO scenario_refs (scenario_id, ref_id, role) VALUES (?, ?, ?)",
+                [scenario_id, ref_id, "descriptor mapping"],
+            )
+    conn.commit()
+    return scenario_id, True
+
+
 # ---------------------------------------------------------------------------
 # query helpers
 # ---------------------------------------------------------------------------

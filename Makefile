@@ -195,8 +195,8 @@ query-demo: scenario-db  ## Query the default demo from the scenario database (a
 demo-scenario-embeddings: scenario-db  ## Interactive semantic search over scenario DB (BGE embeddings + cosine similarity)
 	$(UV) run --group demo python $(DEMO_PY_DIR)/scenario_embeddings_demo.py --db $(SCENARIO_DB)
 
-demo-time2eat: scenario-db  ## /time2eat: recommend mealtimes from nearest scenario embedding (usage: make demo-time2eat Q="poor sleep, late dinner")
-	$(UV) run --group demo python $(DEMO_PY_DIR)/time2eat.py --db $(SCENARIO_DB) "/time2eat $(Q)"
+demo-time2eat: scenario-db  ## /time2eat: choose predefined state options and get a meal-time recommendation
+	$(UV) run --group demo python $(DEMO_PY_DIR)/time2eat.py --db $(SCENARIO_DB)
 
 test-scenariogen:  ## Test scenario generation
 	$(PYTHON) -m pytest tests/test_scenariogen.py tests/test_scenario_db.py -q

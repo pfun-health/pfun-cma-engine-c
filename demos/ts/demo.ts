@@ -1,4 +1,9 @@
-import koffi from "koffi";
+import {
+  runCmaEngine,
+  MAX_POINTS,
+  type ActivityParams,
+  type ModelParams,
+} from "../../pfun_cma_engine/ts/engine.ts";
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -16,8 +21,6 @@ function loadScenarios(root_path: string = repoRoot): Record<string, Scenario> {
 }
 
 const scenarios = loadScenarios();
-
-const MAX_POINTS = 768;
 
 function number(value: number): string {
   if (value === 0) return "0";
@@ -172,14 +175,6 @@ function main(): void {
     );
   }
 
-  const libraryPath =
-    process.env.PFUN_CMA_ENGINE_LIB ??
-    resolve(repoRoot, "pfun_cma_engine/libpfun_cma_engine.so");
-  const library = koffi.load(libraryPath);
-  const runCmaModel = library.func(
-    "void run_cma_model(const double *t, int N, double d, double taup, double taug_val, const double *taug_vec, double B, double Cm, double toff, const double *tM, int n_meals, int *seed, double eps, const double *A_raw, double k_A, double A_thresh, double gamma_A, double kappa_A, double beta_A, double eta_A, double tau_A, double *out_L, double *out_m, double *out_c, double *out_c_mod, double *out_A, double *out_a, double *out_I_S, double *out_I_E, double *out_I_E_eff, double *out_s_A, double *out_G, double *out_g)",
-  );
-
   const pointCount = options.pts;
   const meals = Float64Array.from(scenario.meals);
   const mealWidths = Float64Array.from(scenario.mealWidths);
@@ -203,52 +198,35 @@ function main(): void {
             ),
           ),
         );
-  const outputs = Array.from({ length: 11 }, () => new Float64Array(pointCount));
-  outputs.push(new Float64Array(pointCount * meals.length));
-
-  runCmaModel(
+  const result = runCmaEngine({
     time,
-    pointCount,
-    scenario.modelParams.d,
-    scenario.modelParams.taup,
-    scenario.mealWidths.reduce((sum, width) => sum + width, 0) /
+    modelParams: scenario.modelParams as ModelParams,
+    taug:
+      scenario.mealWidths.reduce((sum, width) => sum + width, 0) /
       scenario.mealWidths.length,
     mealWidths,
-    scenario.modelParams.B,
-    scenario.modelParams.Cm,
-    scenario.modelParams.toff,
     meals,
-    meals.length,
-    null,
-    scenario.modelParams.eps,
     activity,
-    scenario.activityParams.k_A,
-    scenario.activityParams.A_thresh,
-    scenario.activityParams.gamma_A,
-    scenario.activityParams.kappa_A,
-    scenario.activityParams.beta_A,
-    scenario.activityParams.eta_A,
-    scenario.activityParams.tau_A,
-    ...outputs,
-  );
+    activityParams: scenario.activityParams as ActivityParams,
+  });
 
   const columns: Record<string, number[]> = {
-    G: Array.from(outputs[10]),
-    I_E: Array.from(outputs[7]),
-    I_E_eff: Array.from(outputs[8]),
-    L: Array.from(outputs[0]),
-    m: Array.from(outputs[1]),
-    c: Array.from(outputs[2]),
-    c_mod: Array.from(outputs[3]),
-    A: Array.from(outputs[4]),
-    s_A: Array.from(outputs[9]),
-    a: Array.from(outputs[5]),
-    I_S: Array.from(outputs[6]),
+    G: Array.from(result.G),
+    I_E: Array.from(result.I_E),
+    I_E_eff: Array.from(result.I_E_eff),
+    L: Array.from(result.L),
+    m: Array.from(result.m),
+    c: Array.from(result.c),
+    c_mod: Array.from(result.c_mod),
+    A: Array.from(result.A),
+    s_A: Array.from(result.s_A),
+    a: Array.from(result.a),
+    I_S: Array.from(result.I_S),
   };
   columns.t = Array.from(time);
   const mealComponents = Array.from({ length: meals.length }, (_, mealIndex) =>
     Array.from(
-      outputs[11].subarray(mealIndex * pointCount, (mealIndex + 1) * pointCount),
+      result.g.subarray(mealIndex * pointCount, (mealIndex + 1) * pointCount),
     ),
   );
   const output = render(scenario, columns, mealComponents);
