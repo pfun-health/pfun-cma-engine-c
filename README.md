@@ -119,10 +119,10 @@ query> stressed and starving after a bad night, sitting at a desk
 
 #### `/time2eat` skill
 
-`demos/py/time2eat.py` builds on the embeddings: it finds the scenario closest to your description, then picks the healthiest meal-timing alternative (highest similarity-weighted time-in-range of the glucose curve) among scenarios with the same sleep/activity/mood/hunger state and prints its recommended mealtimes.
+`demos/py/time2eat.py` prompts for predefined mood, hunger, sleep, activity, meal-schedule choices, and estimated meal times. It builds a canonical query from those selections to find the closest precomputed scenario. When that exact descriptor-and-time combination is absent, it simulates and stores it in the scenario database first. It then picks the healthiest meal-timing alternative (highest similarity-weighted time-in-range of the glucose curve) among scenarios with the same sleep/activity/mood/hunger state and prints its recommended mealtimes.
 
 ```sh
-$ make demo-time2eat Q="poor sleep, low activity, happy, late dinner, no breakfast"
+$ make demo-time2eat
 ```
 
 Dependencies live in the optional `demo` dependency group (`uv sync --group demo`). For a single non-interactive query: `uv run --group demo python demos/py/scenario_embeddings_demo.py --query "..."`.

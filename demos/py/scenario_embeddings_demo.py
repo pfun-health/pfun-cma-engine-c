@@ -31,6 +31,31 @@ ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)
 DEFAULT_DB = os.path.join(ROOT, "data", "scenario_buffer.sqlite")
 
 
+def fmt_clock(hour: float) -> str:
+    """Format an hour-of-day value as HH:MM."""
+    total = int(round((hour % 24.0) * 60))
+    return f"{total // 60 % 24:02d}:{total % 60:02d}"
+
+
+def collate_query(descriptors: dict[str, object], meal_times: list[float]) -> str:
+    """Render a selected state exactly as a scenario corpus document."""
+    from scenariogen.descriptors import DIMENSION_ORDER
+
+    parts = []
+    for dim in DIMENSION_ORDER:
+        desc = descriptors[dim]
+        label = desc["label"] if isinstance(desc, dict) else desc.label
+        description = (
+            desc.get("description") if isinstance(desc, dict) else desc.description
+        )
+        text = f"{dim.replace('_', ' ')}: {label.replace('_', ' ')}"
+        if description:
+            text += f" ({description})"
+        parts.append(text)
+    parts.append("estimated meal times: " + ", ".join(fmt_clock(t) for t in meal_times))
+    return ". ".join(parts) + "."
+
+
 def load_scenarios(db_path: str) -> list[dict]:
     """Load base scenarios (meal-shift variants are excluded from the corpus)."""
     if not os.path.exists(db_path):
@@ -40,20 +65,16 @@ def load_scenarios(db_path: str) -> list[dict]:
     desc = {r["descriptor_id"]: r for r in conn.execute("SELECT * FROM descriptors")}
     out = []
     for r in conn.execute(
-        "SELECT scenario_id, slug, title, descriptor_set, summary FROM scenarios"
+        "SELECT scenario_id, slug, title, descriptor_set, params, summary FROM scenarios"
         " WHERE meal_shift IS NULL ORDER BY scenario_id"
     ):
         dset = json.loads(r["descriptor_set"])
+        params = json.loads(r["params"])
         summ = json.loads(r["summary"]) if r["summary"] else {}
-        parts = []
-        for dim, did in dset.items():
-            d = desc.get(did)
-            label = d["label"] if d else did.split(":")[-1]
-            text = f"{dim.replace('_', ' ')}: {label.replace('_', ' ')}"
-            if d and d["description"]:
-                text += f" ({d['description']})"
-            parts.append(text)
-        doc = ". ".join(parts) + "."
+        descriptor_rows = {
+            dim: dict(desc[dset[dim]]) for dim in dset
+        }
+        doc = collate_query(descriptor_rows, [float(t) for t in params["tM"]])
         if summ:
             doc += (
                 f" Mean glucose {summ.get('G_mean', float('nan')):.2f},"

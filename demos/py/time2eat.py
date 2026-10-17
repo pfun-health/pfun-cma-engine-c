@@ -2,8 +2,8 @@
 """/time2eat: recommend mealtimes from the closest matching scenario embedding.
 
 Pipeline:
-  1. Embed the free-text state (e.g. "poor sleep, low activity, happy, late
-     dinner, no breakfast") and find the nearest scenario (the *anchor*).
+  1. Collect predefined descriptor choices and build a canonical query matching
+     the precomputed scenario documents; find the nearest scenario (the *anchor*).
   2. Gather alternatives: scenarios sharing the anchor's non-meal descriptors
      (sleep, activity, mood, hunger) that differ only in meal_schedule, plus
      the similarity-weighted top-k embedding neighbors.
@@ -15,7 +15,6 @@ The target range defaults to the 5th..95th glucose percentile of the
 reference (all-default descriptors) scenario; override with --tir-low/--tir-high.
 
 Usage:
-    python demos/py/time2eat.py "/time2eat poor sleep, low activity, happy, late dinner"
     python demos/py/time2eat.py            # interactive
 """
 
@@ -38,17 +37,12 @@ from scenario_embeddings_demo import (  # noqa: E402
     search,
 )
 
-COMMAND = "/time2eat"
+from scenariogen.db import ensure_timed_scenario
+from scenariogen.descriptors import DIMENSIONS, DIMENSION_ORDER
+from scenariogen.mapping import resolve_params
+
 MEAL_DIM = "meal_schedule"
 SIM_TEMPERATURE = 0.05
-
-
-def parse_query(text: str) -> str:
-    """Parse the free-text query, removing the command prefix if present."""
-    text = text.strip()
-    if text.lower().startswith(COMMAND):
-        text = text[len(COMMAND) :]
-    return text.strip(" \t:,")
 
 
 def fmt_clock(h: float) -> str:
@@ -161,10 +155,9 @@ def show(rec: dict, lo: float, hi: float) -> None:
 
 def main() -> None:
     """Main entry point for the time2eat CLI."""
-    
+
     # Parse command-line arguments and initialize the embedding model.
     ap = argparse.ArgumentParser(description=__doc__.split("\n")[0])  # type: ignore
-    ap.add_argument("query", nargs="*", help="e.g. '/time2eat poor sleep, late dinner'")
     ap.add_argument("--db", default=DEFAULT_DB)
     ap.add_argument("--model", default=DEFAULT_MODEL)
     ap.add_argument("--top-k", type=int, default=10)
@@ -180,39 +173,108 @@ def main() -> None:
     # Load scenarios and their glucose curves from the database.
     scenarios = load_scenarios(args.db)
     load_curves(args.db, scenarios)
+
     # Determine the reference TIR range.
     lo, hi = reference_range(scenarios)
     lo = args.tir_low if args.tir_low is not None else lo
     hi = args.tir_high if args.tir_high is not None else hi
-    
+
     # Initialize the embedding model and embed the scenario documents.
     model = TextEmbedding(model_name=args.model)
     matrix = embed_corpus(model, [s["doc"] for s in scenarios])
 
-    def run(text: str) -> None:
-        q = parse_query(text)
-        if not q:
-            print(f"Usage: {COMMAND} <describe sleep, activity, mood, meals>")
-            return
-        hits = search(model, matrix, q, args.top_k)
-        show(recommend(scenarios, hits, lo, hi), lo, hi)
+    def parse_clock(value: str) -> float | None:
+        """Parse a 24-hour HH:MM time into an hour-of-day value."""
+        try:
+            hour, minute = (int(part) for part in value.split(":"))
+        except ValueError:
+            return None
+        if not 0 <= hour < 24 or not 0 <= minute < 60:
+            return None
+        return hour + minute / 60.0
 
-    if args.query:
-        run(" ".join(args.query))
-        return
-    print(
-        f"Type e.g. '{COMMAND} poor sleep, low activity, happy, late dinner, "
-        "no breakfast'. Empty line exits."
-    )
+    def prompt_query() -> tuple[dict, tuple[float, ...]] | None:
+        """Prompt for levels and render them like the precomputed documents."""
+        selected = {}
+        for dim_id in DIMENSION_ORDER:
+            dim = DIMENSIONS[dim_id]
+            options = list(dim.descriptors)
+            default = next((d for d in options if d.label == dim.default_descriptor), options[0])
+            print(f"\n{dim.name}:")
+            for index, desc in enumerate(options, 1):
+                suffix = " (default)" if desc == default else ""
+                print(f"  {index}. {desc.label.replace('_', ' ')}{suffix}")
+            while True:
+                answer = input(f"Choose [1-{len(options)}, Enter={default.label}]: ").strip()
+                if answer.lower() in {"q", "quit", "exit"}:
+                    return None
+                if not answer:
+                    choice = default
+                    break
+                if answer.isdigit() and 1 <= int(answer) <= len(options):
+                    choice = options[int(answer) - 1]
+                    break
+                print("Enter an option number, or press Enter for the default.")
+            selected[dim_id] = choice
+
+        params = resolve_params({dim: selected[dim].descriptor_id for dim in DIMENSION_ORDER})
+        labels = ["breakfast", "lunch", "dinner"]
+        meal_labels = labels if len(params["tM"]) == 3 else labels[-len(params["tM"]):]
+        times = []
+        print("\nEstimated meal times (24-hour HH:MM):")
+        for label, default_time in zip(meal_labels, params["tM"]):
+            while True:
+                answer = input(f"  {label.title()} [Enter={fmt_clock(default_time)}]: ").strip()
+                if answer.lower() in {"q", "quit", "exit"}:
+                    return None
+                if not answer:
+                    times.append(float(default_time))
+                    break
+                parsed = parse_clock(answer)
+                if parsed is not None:
+                    times.append(parsed)
+                    break
+                print("Enter a 24-hour time such as 07:30, or press Enter for the default.")
+        return selected, tuple(times)
+
+    print("Select a predefined state for each dimension. Enter accepts the default; q exits.")
     while True:
         try:
-            line = input("\ntime2eat> ").strip()
+            prompted = prompt_query()
         except (EOFError, KeyboardInterrupt):
             print()
             break
-        if not line or line.lower() in {"q", "quit", "exit"}:
+        if prompted is None:
             break
-        run(line)
+        selected, meal_times = prompted
+        descriptor_set = {dim: selected[dim].descriptor_id for dim in DIMENSION_ORDER}
+        conn = sqlite3.connect(args.db)
+        try:
+            scenario_id, inserted = ensure_timed_scenario(conn, descriptor_set, meal_times)
+        finally:
+            conn.close()
+        if inserted:
+            print("Added the selected state and estimated meal times to the scenario database.")
+            scenarios = load_scenarios(args.db)
+            load_curves(args.db, scenarios)
+            matrix = embed_corpus(model, [s["doc"] for s in scenarios])
+        query = next(s["doc"] for s in scenarios if s["id"] == scenario_id)
+        print(f"\nMatching state: {query}")
+        hits = search(model, matrix, query, args.top_k)
+        show(recommend(scenarios, hits, lo, hi), lo, hi)
+        while True:
+            try:
+                action = input(
+                    "\n\033[32m[Enter] to make another query, [q] to exit: \033[0m"
+                ).strip().lower()
+            except (EOFError, KeyboardInterrupt):
+                print()
+                action = "q"
+            if not action or action in {"q", "quit", "exit"}:
+                break
+            print("Press Enter to make another query, or q to exit.")
+        if action:
+            break
 
 
 if __name__ == "__main__":
