@@ -20,13 +20,13 @@ Later dinner followed by an immediate short walk and a longer block of light-to-
 
 ## Scenario inputs
 
-- meals (h): [7.5, 12.5, 19.0]
-- meal widths taug (h): [0.9, 1.0, 1.4]
+- meals (h): [7.5, 12.5, 19]
+- meal widths taug (h): [0.9, 1, 1.4]
 - activity pulses (center, width, amplitude): [(19.35, 0.2, 0.22), (21.1, 0.9, 0.34)]
 - activity enabled: yes
 - A_raw max: 0.336
 - normalized activity proxy max: 0.336
-- activity params: k_A=5.0, A_thresh=0.3, gamma_A=0.12, kappa_A=0.5, beta_A=0.08, eta_A=0.3, tau_A=2.0
+- activity params: k_A=5, A_thresh=0.3, gamma_A=0.12, kappa_A=0.5, beta_A=0.08, eta_A=0.3, tau_A=2
 
 ## Physiological rationale
 

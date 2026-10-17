@@ -44,13 +44,15 @@ SIM_TEMPERATURE = 0.05
 
 
 def parse_query(text: str) -> str:
+    """Parse the free-text query, removing the command prefix if present."""
     text = text.strip()
     if text.lower().startswith(COMMAND):
-        text = text[len(COMMAND):]
+        text = text[len(COMMAND) :]
     return text.strip(" \t:,")
 
 
 def fmt_clock(h: float) -> str:
+    """Format a floating-point hour as HH:MM."""
     total = int(round((h % 24.0) * 60))
     return f"{total // 60 % 24:02d}:{total % 60:02d}"
 
@@ -64,8 +66,7 @@ def load_curves(db_path: str, scenarios: list[dict]) -> None:
     """
     conn = sqlite3.connect(db_path)
     rows = {
-        r[0]: r
-        for r in conn.execute("SELECT scenario_id, G, params FROM scenarios")
+        r[0]: r for r in conn.execute("SELECT scenario_id, G, params FROM scenarios")
     }
     by_desc: dict[str, list[dict]] = {}
     for sid, title, dset, shift, g, params in conn.execute(
@@ -135,16 +136,20 @@ def recommend(scenarios, hits, lo: float, hi: float) -> dict:
             score = tir * weight
             if best is None or score > best["score"]:
                 best = {"scenario": s, "tir": tir, "score": score, "sim": sim}
+    best: Dict[str, Any]  # type: ignore
     best["anchor"] = anchor
     best["anchor_tir"] = time_in_range(anchor["G"], lo, hi)
     return best
 
 
 def show(rec: dict, lo: float, hi: float) -> None:
+    """Display the recommended meal timing and associated information."""
     a, b = rec["anchor"], rec["scenario"]
     print(f"Closest scenario: {a['title']}")
-    print(f"  meals: {', '.join(fmt_clock(t) for t in a['tM'])}"
-          f"  | TIR {rec['anchor_tir']:.0%} (range {lo:.2f}-{hi:.2f})")
+    print(
+        f"  meals: {', '.join(fmt_clock(t) for t in a['tM'])}"
+        f"  | TIR {rec['anchor_tir']:.0%} (range {lo:.2f}-{hi:.2f})"
+    )
     print(f"Healthiest alternative: {b['title']}")
     print(f"  TIR {rec['tir']:.0%}  (similarity {rec['sim']:.3f})")
     labels = ["breakfast", "lunch", "dinner"]
@@ -155,7 +160,10 @@ def show(rec: dict, lo: float, hi: float) -> None:
 
 
 def main() -> None:
-    ap = argparse.ArgumentParser(description=__doc__.split("\n")[0])
+    """Main entry point for the time2eat CLI."""
+    
+    # Parse command-line arguments and initialize the embedding model.
+    ap = argparse.ArgumentParser(description=__doc__.split("\n")[0])  # type: ignore
     ap.add_argument("query", nargs="*", help="e.g. '/time2eat poor sleep, late dinner'")
     ap.add_argument("--db", default=DEFAULT_DB)
     ap.add_argument("--model", default=DEFAULT_MODEL)
@@ -169,11 +177,15 @@ def main() -> None:
     except ImportError:
         sys.exit("fastembed missing: run `uv sync --group demo`")
 
+    # Load scenarios and their glucose curves from the database.
     scenarios = load_scenarios(args.db)
     load_curves(args.db, scenarios)
+    # Determine the reference TIR range.
     lo, hi = reference_range(scenarios)
     lo = args.tir_low if args.tir_low is not None else lo
     hi = args.tir_high if args.tir_high is not None else hi
+    
+    # Initialize the embedding model and embed the scenario documents.
     model = TextEmbedding(model_name=args.model)
     matrix = embed_corpus(model, [s["doc"] for s in scenarios])
 
@@ -188,8 +200,10 @@ def main() -> None:
     if args.query:
         run(" ".join(args.query))
         return
-    print(f"Type e.g. '{COMMAND} poor sleep, low activity, happy, late dinner, "
-          "no breakfast'. Empty line exits.")
+    print(
+        f"Type e.g. '{COMMAND} poor sleep, low activity, happy, late dinner, "
+        "no breakfast'. Empty line exits."
+    )
     while True:
         try:
             line = input("\ntime2eat> ").strip()

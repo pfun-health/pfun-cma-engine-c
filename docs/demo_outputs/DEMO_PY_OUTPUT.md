@@ -20,11 +20,11 @@ Reference day with breakfast, lunch, and dinner and no scheduled activity.
 
 ## Scenario inputs
 
-- meals (h): [7.0, 11.0, 17.5]
-- meal widths taug (h): [1.0, 1.0, 1.0]
+- meals (h): [7, 11, 17.5]
+- meal widths taug (h): [1, 1, 1]
 - activity pulses (center, width, amplitude): none
 - activity enabled: no
-- activity params: k_A=5.0, A_thresh=0.3, gamma_A=0.15, kappa_A=0.5, beta_A=0.2, eta_A=0.4, tau_A=2.0
+- activity params: k_A=5, A_thresh=0.3, gamma_A=0.15, kappa_A=0.5, beta_A=0.2, eta_A=0.4, tau_A=2
 
 ## Tabular output
 

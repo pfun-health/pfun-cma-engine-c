@@ -21,6 +21,7 @@ import os
 import sqlite3
 import sys
 
+from fastembed import TextEmbedding
 import numpy as np
 
 DEFAULT_MODEL = "BAAI/bge-small-en-v1.5"
@@ -36,10 +37,7 @@ def load_scenarios(db_path: str) -> list[dict]:
         sys.exit(f"Scenario DB not found: {db_path} (run `make scenario-db`)")
     conn = sqlite3.connect(db_path)
     conn.row_factory = sqlite3.Row
-    desc = {
-        r["descriptor_id"]: r
-        for r in conn.execute("SELECT * FROM descriptors")
-    }
+    desc = {r["descriptor_id"]: r for r in conn.execute("SELECT * FROM descriptors")}
     out = []
     for r in conn.execute(
         "SELECT scenario_id, slug, title, descriptor_set, summary FROM scenarios"
@@ -75,20 +73,34 @@ def load_scenarios(db_path: str) -> list[dict]:
     return out
 
 
-def embed_corpus(model, docs: list[str]) -> np.ndarray:
+def embed_corpus(model: TextEmbedding, docs: list[str]) -> np.ndarray:
+    """Embed a list of documents and L2-normalize the resulting vectors."""
     vecs = np.asarray(list(model.embed(docs)), dtype=np.float32)
     return vecs / np.linalg.norm(vecs, axis=1, keepdims=True)
 
 
-def search(model, matrix: np.ndarray, query: str, k: int):
+def search(model: TextEmbedding, matrix: np.ndarray, query: str, k: int):
+    """Search for the top-k most similar scenarios to the given query.
+    Args:
+        model: The embedding model to use.
+        matrix: The L2-normalized document embeddings.
+        query: The query string to search for.
+        k: The number of top results to return.
+
+    Returns:
+        A list of tuples (scenario_index, similarity_score) for the top-k matches.
+    """
+    # Embed the query and L2-normalize it.
     q = np.asarray(list(model.embed([QUERY_PREFIX + query])), dtype=np.float32)[0]
     q /= np.linalg.norm(q)
+    # Compute cosine similarity between the query and all document vectors.
     sims = matrix @ q  # cosine similarity
     idx = np.argsort(-sims)[:k]
     return [(int(i), float(sims[i])) for i in idx]
 
 
 def show(scenarios, hits) -> None:
+    """Display the search results for the given scenarios and hits."""
     for rank, (i, score) in enumerate(hits, 1):
         s = scenarios[i]
         g = s["summary"]
@@ -105,7 +117,21 @@ def show(scenarios, hits) -> None:
 
 
 def main() -> None:
-    ap = argparse.ArgumentParser(description=__doc__.split("\n")[0])
+    """Main entry point for the scenario embeddings demo.
+
+    This script demonstrates:
+        - Loading scenarios from a database.
+        - Embedding scenario documents using a text embedding model.
+        - Searching for the most similar scenarios to a given query.
+        - Recommending the healthiest alternative meal timing based on the search results.
+
+    Arguments:
+        --db: Path to the database containing scenarios.
+        --model: Name of the embedding model to use.
+        --top-k: Number of top results to return for each query.
+        --query: Run a single query and exit.
+    """
+    ap = argparse.ArgumentParser(description=__doc__.split("\n")[0])  # type: ignore
     ap.add_argument("--db", default=DEFAULT_DB)
     ap.add_argument("--model", default=DEFAULT_MODEL)
     ap.add_argument("--top-k", type=int, default=3)
@@ -117,6 +143,7 @@ def main() -> None:
     except ImportError:
         sys.exit("fastembed missing: run `uv sync --group demo`")
 
+    # Load scenarios from the database and embed their documents.
     scenarios = load_scenarios(args.db)
     print(f"Loaded {len(scenarios)} scenarios; loading model {args.model} ...")
     model = TextEmbedding(model_name=args.model)
@@ -127,8 +154,10 @@ def main() -> None:
         show(scenarios, search(model, matrix, args.query, args.top_k))
         return
 
-    print("Describe a day/state (e.g. 'anxious, skipped breakfast, slept badly'). "
-          "Empty line or 'quit' exits.")
+    print(
+        "Describe a day/state (e.g. 'anxious, skipped breakfast, slept badly'). "
+        "Empty line or 'quit' exits."
+    )
     while True:
         try:
             q = input("\nquery> ").strip()
