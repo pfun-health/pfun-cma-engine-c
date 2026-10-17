@@ -66,6 +66,19 @@ Already Python-free (no change except dependency hygiene): `libs`, `all`,
 
 ## 3a. Build Target Pruning (Minimum Set for Defined Demos)
 
+> **Amendment (supersedes the removals below where they conflict):** the
+> `/time2eat` demo is now a **required deliverable** (see §11.7), shipped as a
+> Cloudflare Worker app. Therefore the scenario database, embedding search and
+> `time2eat` logic are **kept and ported to TypeScript** (FR-3, FR-4 apply in
+> full, and `demo-scenario-embeddings`, `demo-time2eat`, `scenario-db`,
+> `scenario-db-core`, `query-demo`, `test-scenariogen` move from "Remove" to
+> "Keep" as TS targets). `demos/py/{time2eat,scenario_embeddings_demo,
+> build_scenario_db,query_scenario_db}.py`, `demos/py/scenariogen/**`, the
+> scenario tests and `docs/SCENARIO_DB.md` are ported (docs retained and
+> updated), then the Python originals are deleted. Everything else in the
+> Remove list (JIT, IR exploration, precision, packaging) is unchanged. R8 is
+> narrowed accordingly.
+
 Defined demos: C interactive (`demos/c/demo.c`), CGM fit (`demos/c/cgm_fit.c`),
 WASM browser (`demos/c/wasm_demo.c`), and TypeScript scenario demo
 (`demos/ts/demo.ts`, which absorbs the morning-run / evening-party scenarios
@@ -398,7 +411,7 @@ Each phase is a separately reviewable PR that keeps `make test` green.
 their output (Python-free toolchain, kept `demo-wasm` target, Node tooling).
 
 ### 11.1 Goal
-Serve the CMA model as a tiny, scale-to-zero edge app on Cloudflare Workers,
+Serve the CMA model (including the `/time2eat` chat recommender, §11.7) as a tiny, scale-to-zero edge app on Cloudflare Workers,
 running the existing C engine compiled to WebAssembly. Targets:
 - **Minimal memory:** a few MB resident per isolate (well below the Workers
   128 MB isolate limit); no heap growth at runtime.
@@ -481,6 +494,120 @@ client ──POST /api/run──► Worker (TS) ──► cma.wasm (C engine, in
    approaches the free-tier limit.
 8. **Docs:** `docs/DEPLOY_CLOUDFLARE.md` (setup, token scope, deploy, rollback);
    README link.
+
+### 11.7 Required: `/time2eat` as a user-facing Worker app
+**Requirement:** the deployed app must provide a functional `/time2eat`:
+a real user asks "when is the best time for me to eat?" and receives
+recommended meal times, backed by the CMA model and scenario database. It is a
+port of `demos/py/time2eat.py` (nearest-scenario anchor → alternatives sharing
+non-meal descriptors + similarity-weighted top-k neighbors → score by
+time-in-range of the precomputed glucose curve → return best `tM` meal onsets).
+
+**Components** (one Worker with internal modules, or two Workers joined by a
+service binding; default to one Worker to minimize cost/latency):
+
+1. **Chat orchestrator (LLM).** Handles the conversation: greets, extracts
+   structured state (`sleep`, `activity`, `mood`, `hunger`, `meal_schedule`,
+   plus any allowed free text), detects missing/ambiguous fields, asks concise
+   follow-up questions, and only calls the recommender once the required
+   fields are satisfied or the user explicitly opts to use defaults. It never
+   invents physiology: numeric answers come only from the recommender tool.
+   - Model access via Workers AI (`env.AI`, no external keys, billed per use)
+     as default; provider abstracted behind an `LlmClient` interface so an
+     external API (via AI Gateway for caching/rate limits/spend caps) can be
+     swapped in.
+   - Uses structured output / tool calling: a single tool
+     `recommend_mealtimes(state)` with a JSON schema whose enums are the
+     dimension descriptors from the DB; the orchestrator validates the model's
+     tool args against the schema before executing and re-prompts on failure.
+   - Small context: system prompt + last N turns only; hard cap on output
+     tokens, turns per session, and message length.
+   - Safety/medical: system prompt and UI state the output is informational
+     and not medical advice; users reporting diabetes/medication/hypoglycemia
+     symptoms get a fixed safety message instead of a recommendation. Refuse
+     off-topic requests.
+2. **Recommender service (embedding model + scenario DB + WASM engine).**
+   Deterministic, no LLM. Inputs: validated state → output: `{anchor,
+   alternatives[], best: {meal_schedule, tM[], tir, similarity}, curve?}`.
+   - **Scenario DB at the edge:** the DB is built offline (`make scenario-db`,
+     TS) and shipped as read-only data. Preferred: a compact precomputed
+     bundle (JSON/binary: scenario descriptors, tM, glucose curves, and
+     precomputed embedding vectors, Float32 or int8-quantized) imported as a
+     static asset or Worker module — no DB at request time. Fallback: D1 (SQLite)
+     loaded from the same build output if the corpus outgrows the bundle.
+     Scenario count (core 15 / full tier) × 97–193 points keeps this well
+     under a few MB.
+   - **Embeddings:** the corpus is embedded *at build time*. At request time
+     only the user's text must be embedded: use Workers AI
+     (`@cf/baai/bge-small-en-v1.5`, same family as the Python demo; apply the
+     BGE query instruction prefix, L2-normalize) and do cosine search in-Worker
+     over the preloaded vectors (a few hundred floats × tens of scenarios —
+     microseconds, no vector DB needed; Vectorize only if the corpus becomes
+     large). Better still, avoid the embedding call: the LLM's structured
+     descriptors map directly to scenario keys, and embeddings are used only to
+     resolve free-text residue. Cache query→embedding in the Cache API.
+   - **WASM engine:** the §11.4 module recomputes curves for on-the-fly
+     variants (e.g. ± meal shifts not in the DB) so scoring is not limited to
+     precomputed scenarios.
+   - TIR target range defaults to the reference scenario's 5th–95th glucose
+     percentile, overridable, as in the Python demo.
+
+**Interfaces**
+- `POST /api/chat` `{session_id?, messages[]}` → streamed or JSON assistant
+  reply plus optional `recommendation` object.
+- `POST /api/time2eat` `{state}` → recommendation (direct, LLM-free API;
+  also used by tests and by the orchestrator tool).
+- `GET /` UI: minimal static chat page (no framework) calling `/api/chat`;
+  recommendation card shows meal times and a small SVG glucose curve.
+- Session state is carried client-side (message history in the request) so
+  the Worker stays stateless; no Durable Objects/KV unless rate limiting
+  requires them.
+
+**Cost & footprint controls (extend §11.1):** one LLM call per user turn
+(≤ 2 when a retry is needed), capped tokens; embedding call only when free
+text cannot be resolved by descriptors; per-IP/session rate limiting;
+AI Gateway spend cap; response caching for identical states
+(`/api/time2eat` is pure → cacheable); no always-on components.
+
+**Privacy:** no persistence of chats by default; no PII or health data logged;
+logs record only counts/latency. Document data handling in
+`docs/DEPLOY_CLOUDFLARE.md`.
+
+**Technical steps (add to §11.4):**
+9. Port `scenariogen` + `time2eat` logic to TS as a runtime-agnostic library
+   (no Node-only APIs on the recommender path) used by both the Node CLI
+   (`make demo-time2eat`) and the Worker.
+10. Add `make scenario-bundle`: builds the DB, embeds the corpus with the
+    chosen model, quantizes, and emits the Worker data bundle plus a manifest
+    (model name, dims, hash, build date); Worker refuses to start on a model/
+    dimension mismatch.
+11. Implement the `LlmClient`, prompt, tool schema, slot-filling state
+    machine (required fields, defaults, max follow-ups = 3), and safety
+    handling; unit-test with a recorded/mock LLM.
+12. Implement `/api/time2eat` and `/api/chat`; wire the static UI.
+13. Evaluation: golden-query set for the recommender (top-1 anchor and best
+    `tM` match the Python reference ≥ 95%); conversation test set checking
+    that missing info triggers a follow-up, complete info triggers exactly one
+    tool call, and out-of-scope/medical prompts get the safe response.
+
+**Acceptance criteria (in addition to §11.5):**
+- [ ] A user can open the deployed URL, ask "when is the best time for me to
+      eat?", answer follow-ups, and receive meal-time recommendations with
+      anchor scenario and TIR score.
+- [ ] Recommender output is deterministic for a given state and matches the
+      Python reference on the golden set.
+- [ ] LLM never returns numbers not produced by the recommender (verified by
+      test: response times ⊆ tool result times).
+- [ ] ≤ 2 LLM calls and ≤ 1 embedding call per user turn; per-turn p50 CPU
+      (excluding AI waits) < 10 ms.
+- [ ] Rate limiting and spend cap configured; no chat data persisted.
+- [ ] Works with Workers AI only (no external secrets) and with the swap-in
+      provider behind `LlmClient`.
+
+**Risks:** LLM hallucination or non-compliance with schema (mitigate with
+validation + tool-only numerics); Workers AI model availability/pricing
+changes (abstraction + AI Gateway); corpus growth beyond bundle size (D1/
+Vectorize fallback); medical-advice liability (disclaimer + hard safety path).
 
 ### 11.5 Acceptance criteria
 - [ ] `.wasm` ≤ 100 KB (stretch ≤ 50 KB), no JS glue beyond the Worker.
