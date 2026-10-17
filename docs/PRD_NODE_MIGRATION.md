@@ -1,6 +1,7 @@
 # PRD: Migrate All Python-Based Build Targets to Node.js / TypeScript
 
-**Status:** Proposed
+**Status:** In progress — Phase 1 (foundation) implemented; Phases 2–6 and the
+Cloudflare direction (§11) remain. See §10 for per-phase status.
 **Owner:** pfun-health
 **Scope:** Every `make` target, script, test, container, and dev-environment
 definition that currently requires Python or `uv`.
@@ -202,10 +203,17 @@ src/*.c ──► libpfun_cma_engine.so ──► Koffi ──► ts/ library �
 ## 5. Functional Requirements
 
 ### FR-1 Engine binding (replaces `pfun_cma_engine.py`)
-- Load `pfun_cma_engine/libpfun_cma_engine.so` (path overridable by
-  `PFUN_CMA_LIB`); error clearly if not built (`run make libs`).
-- Expose `runCmaEngine(params, opts)` with the same inputs/outputs as
-  `run_cma_engine_c`.
+- **Implemented** in `pfun_cma_engine/ts/engine.ts`: loads
+  `pfun_cma_engine/libpfun_cma_engine.so` (path overridable by
+  `PFUN_CMA_ENGINE_LIB`); errors clearly if not built (`run make libs`).
+  Exports `runCmaEngine(input)`, `MAX_POINTS` (768), `libraryPath()`, and the
+  `ModelParams`/`ActivityParams`/`EngineInput`/`EngineOutput` types. Input
+  validation: 2..`MAX_POINTS` time points, `mealWidths.length === meals.length`
+  (`RangeError` otherwise). `demos/ts/demo.ts` now uses it (output verified
+  byte-identical for `morning-run`). Covered by `tests/engine.test.ts`.
+- Remaining: a higher-level `run_cma_engine_c`-compatible wrapper with the
+  Python defaults (parameter defaults, activity-pulse generation) for the
+  scenario/DB ports.
 - Support FP64 plus FP32/FP16 boundary quantization helpers
   (`Math.fround`; software half-precision rounding) used by precision checks
   (see `docs/PRECISION.md`).
@@ -391,9 +399,14 @@ src/*.c ──► libpfun_cma_engine.so ──► Koffi ──► ts/ library �
 ## 10. Phased Plan
 
 1. **Phase 0 – Baseline:** capture golden outputs; add CI on current state.
+   *(Not started.)*
 2. **Phase 1 – Foundation:** `tsconfig`, `engines`, TS engine library (FR-1),
    refactor `demos/ts/demo.ts` onto it; shared test helpers.
-3. **Phase 2 – Core ports:** scenarios/demo (FR-2), `scenariogen` + DB (FR-3),
+   *(Done: `tsconfig.json` (strict, `erasableSyntaxOnly`), `engines.node
+   >=22.6`, `typescript`/`@types/node` devDependencies, npm scripts `build`,
+   `test` (`node --test tests/*.test.ts`), `typecheck` (`tsc --noEmit`);
+   Python code and Makefile untouched.)*
+3. **Phase 2 – Core ports** *(next)*: scenarios/demo (FR-2), `scenariogen` + DB (FR-3),
    tests (FR-5), precision tool (FR-6a).
 4. **Phase 3 – Tooling:** CGM fetch, LLVM conversion, benchmark, static server
    (FR-6).
