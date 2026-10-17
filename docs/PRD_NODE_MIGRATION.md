@@ -63,6 +63,59 @@ Already Python-free (no change except dependency hygiene): `libs`, `all`,
 `demo`, `demo-c-output`, `demo-ts-output`, `demo-wasm`, `cgm-*`, `test-cgm`,
 `check-ir`, `format`.
 
+## 3a. Build Target Pruning (Minimum Set for Defined Demos)
+
+Defined demos: C interactive (`demos/c/demo.c`), CGM fit (`demos/c/cgm_fit.c`),
+WASM browser (`demos/c/wasm_demo.c`), and TypeScript scenario demo
+(`demos/ts/demo.ts`, which absorbs the morning-run / evening-party scenarios
+from `demos/scenarios.json`). The Python-only demos (`demo_jit.py`, scenario
+DB, embeddings, `/time2eat`) are not required demos and are removed rather
+than ported, which narrows FR-3, FR-4 and FR-6 (see below).
+
+**Keep (required by a defined demo or its verification):**
+
+| Target | Reason |
+|---|---|
+| `help`, `libs`, `all`, `directories`, `clean`, `rebuild` | Core build; `libs` feeds the TS demo (Koffi) |
+| `demo`, `vendor-nuklear`, `demo-c-output` | C demo |
+| `demo-ts-output` (+ `demo-morning-run`, `demo-evening-party` re-pointed at TS), `npm-setup`, `outputs` | TS demo and snapshots in `docs/demo_outputs/` |
+| `demo-wasm` | WASM demo |
+| `cgm-ingest`, `cgm-fit`, `test-cgm` | CGM fit demo and its test |
+| `test`, `test-llvm`, `check-ir` (+ `llvm-ir`, `llvm-verify`) | Minimal regression gate: C engine numerics via `tests/test_scaling.c`, plus a ported `test-ts` for the TS demo/scenarios |
+| `format`, `check-format` | Source hygiene |
+
+**Remove (not needed by any defined demo):**
+- Python env: `python-setup`, `python-setup-dev`, `python-clean-venv`,
+  `demo-py-output`, and variables `UV`, `PYTHON`.
+- Scenario DB / embeddings: `scenario-db`, `scenario-db-core`, `query-demo`,
+  `demo-scenario-embeddings`, `demo-time2eat`, `test-scenariogen`, plus
+  `demos/py/**`, `demos/py/scenariogen/**`, `docs/SCENARIO_DB.md`,
+  and the `SCENARIO_DB` / `MOOD` / `HUNGER` / `SLEEP` / `ACTIVITY_LVL` /
+  `MEAL_SCHED` variables.
+- Precision tooling: `test-precision`, `precision-report`, `tools/precision_report.py`,
+  `docs/PRECISION.md` (revisit only if the owner wants it kept as a TS test).
+- Data fetch: `fetch-cgm`, `tools/fetch_cgm_data.py` (sample CSVs in
+  `tests/data/` already cover the CGM demo).
+- LLVM exploration: `lto-test`, `llvm-targets`, `analyze-ir`, `optimize-ir`,
+  `profile-ir`, `ir-metrics`, `analyze-all`, and `tools/ir-*.sh`,
+  `tools/check-ir-metrics.sh`, `tests/ir-golden-metrics.txt` — optional
+  analysis, not demo-required. `convert-to-llvm.py` is replaced by a
+  direct `clang -S -emit-llvm` / `llvm-as` recipe in the Makefile, so no
+  script (Python or TS) is needed for `llvm-ir`.
+- Python packaging and JIT: `setup.py`, `pyproject.toml`, `uv.lock`,
+  `.python-version`, `MANIFEST.in`, `pfun_cma_engine/*.py`,
+  `pfun_cma_engine/py/`, `tools/benchmark-compare.py`, `tests/*.py`.
+- Debug target: `debug` (rebuild via `make CFLAGS=...` instead).
+
+**Effect on other sections:** FR-3 (scenario DB), FR-4 (embeddings), FR-5
+(ported tests limited to `test_activity`/`test_demo_scenarios` equivalents
+exercising the TS demo), and FR-6 (only `convert-to-llvm` replaced inline;
+`precision_report`, `fetch_cgm_data`, `benchmark-compare` dropped) shrink to
+the surface above; `node:sqlite`, embedding dependencies and R1/R3/R6/R7 no
+longer apply. Docker `build`/`shell` and `flake.nix` shrink accordingly. The
+removal list needs owner sign-off (new open decision R8); anything the owner
+wants preserved is re-added to the Keep table and ported per the original FRs.
+
 ## 4. Target Architecture
 
 ```
@@ -253,6 +306,7 @@ src/*.c ──► libpfun_cma_engine.so ──► Koffi ──► ts/ library �
 | R4 | `--experimental-strip-types` is experimental and forbids enums/namespaces/parameter properties | Lint rule (`erasableSyntaxOnly` in `tsconfig.json`); Node 22.18+/24 enable stripping by default—pin `engines` accordingly. |
 | R5 | Koffi native prebuilds on Alpine/musl and arm64 | Verify in Docker CI matrix; fallback is building Koffi from source. |
 | R6 | `node:sqlite` is stable-ish only in newer Node | Require Node ≥ 22.13 (flag-free) or use `better-sqlite3` as fallback. |
+| R8 | Pruning (§3a) deletes scenario DB, embeddings, precision and LLVM-analysis features | Owner confirms the Keep/Remove lists before Phase 6 |
 | R7 | Float16 emulation for precision tests | Implement round-to-nearest-even helper (or `Math.f16round` on Node ≥ 24); unit-test against known vectors. |
 
 ## 10. Phased Plan
