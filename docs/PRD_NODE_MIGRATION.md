@@ -392,6 +392,113 @@ src/*.c ──► libpfun_cma_engine.so ──► Koffi ──► ts/ library �
 
 Each phase is a separately reviewable PR that keeps `make test` green.
 
-## 11. Out-of-Scope Follow-ups
+## 11. Future Direction: Cloudflare Workers WASM Deployment
+
+**Status:** Future work (post-migration). Not part of Phases 0–6; it builds on
+their output (Python-free toolchain, kept `demo-wasm` target, Node tooling).
+
+### 11.1 Goal
+Serve the CMA model as a tiny, scale-to-zero edge app on Cloudflare Workers,
+running the existing C engine compiled to WebAssembly. Targets:
+- **Minimal memory:** a few MB resident per isolate (well below the Workers
+  128 MB isolate limit); no heap growth at runtime.
+- **Minimal process overhead:** no containers/VMs, no always-on server, no
+  external services (no DB, KV, or embeddings), stateless pure compute.
+- **Minimal cost:** stay within the Workers free tier for demo traffic; on the
+  paid plan, per-request CPU time is the cost driver, so each call must cost
+  well under 1 ms of CPU.
+
+The engine already suits this: `demos/c/wasm_demo.c` uses fixed static buffers
+(`MAXPTS 512`, ~16 `double` arrays ≈ 65 KB total) and `run_cma_model` is a
+deterministic closed-form computation with no I/O or threads.
+
+### 11.2 Platform facts to design against
+Re-verify against the Cloudflare docs at implementation time (limits change):
+- Workers run in V8 isolates; WASM is supported via `.wasm` module imports
+  bundled by Wrangler (`import mod from "./x.wasm"` yields a precompiled
+  `WebAssembly.Module`). Runtime compilation of arbitrary bytes
+  (`WebAssembly.compile`/`instantiate(bytes)`) is blocked, so the module must
+  be imported statically; instantiate once at module scope and reuse.
+- Isolate memory limit is 128 MB; Workers are single-threaded (no wasm
+  threads/shared memory).
+- Free plan CPU time is ~10 ms/request; paid plan allows far more but bills per
+  CPU-ms. Script size limits are small on the free plan (single-digit MB
+  compressed) and larger on paid — check current numbers; our artifact should
+  be far below either.
+- Static HTML/JS can be served via Workers Static Assets (static asset
+  requests are free/unmetered at time of writing — verify).
+- WASI/Emscripten syscalls are not available; the module must not depend on
+  filesystem, threads, or dynamic memory growth.
+
+### 11.3 Architecture
+```
+client ──GET /──────────► Static Assets (index.html, small JS)
+client ──POST /api/run──► Worker (TS) ──► cma.wasm (C engine, instance reused)
+```
+- One Worker (`worker/index.ts`) with two routes: static UI via Assets binding,
+  and `POST /api/run` taking the model parameters as JSON, returning series as
+  JSON (or a compact `Float32Array` binary response for large `npts`).
+- Alternatively (zero Worker CPU): run the WASM in the browser only and deploy
+  **only static assets** (the existing `public/index-wasm.html` +
+  `demo-wasm.{js,wasm}`). This is the cheapest option and the recommended
+  phase 1; the Worker API is optional phase 2 for programmatic access.
+
+### 11.4 Technical steps
+1. **Standalone WASM build** (new Make target `wasm-worker`):
+   build `src/pfun_cma_engine.c` plus a thin export shim (derived from
+   `wasm_demo.c`, with the input validation/clamping kept) using either
+   `clang --target=wasm32 -nostdlib -O3 -flto -Wl,--no-entry
+   -Wl,--export-dynamic` with a small libm (or emscripten
+   `-sSTANDALONE_WASM=1 -sMALLOC=none -sINITIAL_MEMORY=1MB
+   -sALLOW_MEMORY_GROWTH=0 -sFILESYSTEM=0 --no-entry`). Prefer the
+   no-libc/no-emscripten-glue route so no JS glue is shipped; supply `exp`,
+   `pow`, `sin`, `cos`, etc. via a minimal libm (e.g. compiler-rt/musl subset)
+   or JS imports (`Math.*`) if bit-exact parity is not required (decision in
+   step 5).
+2. **Shrink:** `-Oz`/`-O3` + LTO, `wasm-opt -Oz` (Binaryen), strip names;
+   record artifact size and enforce a budget (e.g. ≤ 100 KB, CI check).
+3. **Memory layout:** fixed 1–2 pages (64–128 KiB) of linear memory, static
+   input/output buffers exposed as exported offsets; JS reads results through
+   typed-array views over `memory.buffer` (no per-request allocation).
+   Reject `npts > MAXPTS` with HTTP 400.
+4. **Worker** (`worker/index.ts`, `wrangler.toml`/`wrangler.jsonc`):
+   static `.wasm` import, module-scope `new WebAssembly.Instance`, request
+   validation (finite numbers, range clamps), JSON in/out, `Cache-Control` and
+   `Cache API` / ETag on deterministic GET variants so repeat queries cost zero
+   CPU. No bindings (KV/D1/R2/DO) are configured. Set `compatibility_date`,
+   disable observability sampling beyond what is needed.
+5. **Parity tests:** reuse the `node:test` suite to load the same `.wasm` under
+   Node and compare against the native `.so` output via Koffi (tolerance
+   documented; exact for FP64 if libm matches, else ~1e-12 relative).
+6. **Local dev & CI:** `wrangler dev` for local; `npm run deploy` →
+   `wrangler deploy`; CI job builds the wasm, runs parity tests, checks size
+   budget, and (on main) deploys using a scoped `CLOUDFLARE_API_TOKEN` secret.
+   Add `wrangler` as a `devDependency`; Nix dev shell includes Node only
+   (wrangler via npm).
+7. **Cost/footprint guardrails:** rate-limit with a Cloudflare rate-limiting
+   rule or WAF; cap `npts`; benchmark CPU time per request with
+   `wrangler tail`/analytics and record p50/p99 in docs; alert if p99 CPU
+   approaches the free-tier limit.
+8. **Docs:** `docs/DEPLOY_CLOUDFLARE.md` (setup, token scope, deploy, rollback);
+   README link.
+
+### 11.5 Acceptance criteria
+- [ ] `.wasm` ≤ 100 KB (stretch ≤ 50 KB), no JS glue beyond the Worker.
+- [ ] Linear memory fixed ≤ 2 MiB; no growth; Worker RSS reported by the
+      platform far below 128 MB.
+- [ ] p99 CPU time per `/api/run` (97 pts) < 1 ms locally in Node/workerd.
+- [ ] Zero configured storage/compute bindings; deployable on the free plan.
+- [ ] Parity tests pass against the native engine within stated tolerance.
+- [ ] `make wasm-worker` and `npm run deploy` work without Python or uv.
+
+### 11.6 Risks / open questions
+- **libm without Emscripten:** exactness vs. size trade-off (step 1).
+- **Free-plan CPU ceiling (~10 ms):** large `npts` or noisy runs must be
+  bounded; mitigated by the `MAXPTS` cap and caching.
+- **Limits drift:** verify size/CPU/memory/pricing numbers at implementation
+  time; they are reference values, not guarantees.
+- **Abuse/cost:** public unauthenticated endpoint needs rate limiting.
+
+## 12. Out-of-Scope Follow-ups
 - npm package with prebuilt binaries; WASM-only distribution of the engine;
   porting the GSL CGM fit to Node.
